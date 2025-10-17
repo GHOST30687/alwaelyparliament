@@ -19,6 +19,13 @@ html,body{
   overflow-x: hidden;
 }
 
+/* تأكد من تحميل الخطوط قبل عرض المحتوى */
+@font-face {
+  font-family: 'Fallback Arabic';
+  src: local('Segoe UI'), local('Arial');
+  font-display: swap;
+}
+
 /* خلفية احترافية خفيفة + طبقة أشكال متحركة دائماً */
 body::before{
   content: "";
@@ -34,6 +41,7 @@ body::before{
   background-repeat: no-repeat;
   animation: bg-pan 28s linear infinite;
   will-change: background-position;
+  transform: translateZ(0);
 }
 
 @keyframes bg-pan{
@@ -44,7 +52,18 @@ body::before{
 
 /* طبقة أشكال متحركة (مربعات ومثلثات) */
 .bg-shapes{ position: fixed; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-.shape{ position: absolute; width: 16px; height: 16px; opacity: 0.15; filter: blur(0.8px); animation: spin 12s linear infinite, float 8s ease-in-out infinite; will-change: transform; }
+.shape{ 
+  position: absolute; 
+  width: 16px; 
+  height: 16px; 
+  opacity: 0.2; 
+  animation: spin 12s linear infinite, float 8s ease-in-out infinite; 
+  will-change: transform;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+}
 .shape.square{ background: currentColor; border-radius: 3px; color: var(--gold); }
 .shape.triangle{ background: transparent; color: var(--gold); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); }
 
@@ -62,8 +81,24 @@ body::before{
 .bg-shapes .shape:nth-child(11){ top: 84%; left: 44%; animation-delay: 5s, 2s; }
 .bg-shapes .shape:nth-child(12){ top: 22%; left: 92%; animation-delay: 5.5s, 2.2s; }
 
-@keyframes spin{ 0%{ transform: rotate(0); } 100%{ transform: rotate(360deg); } }
-@keyframes float{ 0%,100%{ transform: translateY(0); } 50%{ transform: translateY(-8px); } }
+@keyframes spin{ 
+  0%{ transform: rotate(0deg); } 
+  100%{ transform: rotate(360deg); } 
+}
+@keyframes float{ 
+  0%, 100%{ transform: translateY(0px); } 
+  50%{ transform: translateY(-8px); } 
+}
+
+/* دعم المتصفحات القديمة */
+@-webkit-keyframes spin{ 
+  0%{ -webkit-transform: rotate(0deg); } 
+  100%{ -webkit-transform: rotate(360deg); } 
+}
+@-webkit-keyframes float{ 
+  0%, 100%{ -webkit-transform: translateY(0px); } 
+  50%{ -webkit-transform: translateY(-8px); } 
+}
 
 
 /* الوضع الداكن */

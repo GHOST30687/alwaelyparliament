@@ -9,7 +9,7 @@ const app = express();
 // ====== إعدادات JSONBin ======
 const JSONBIN_CONFIG = {
   X_MAIN_KEY: '$2a$10$fla1BI8qDkOGpARIa8t3au.4.u5oSazuv41Fip1LQNuHLqt8GmFWi',
-  MEMBERS_BIN_ID: '',      // bin البرلمانيين - ضع ID الجديد هنا
+  MEMBERS_BIN_ID: '68e83d25d0ea881f409bb525',      // مؤقتاً - استخدم نفس bin المسؤولين حتى تنشئ bin جديد
   ADMINS_BIN_ID: '68e83d25d0ea881f409bb525',       // bin المسؤولين/الناشرين
   ANNOUNCEMENTS_BIN_ID: '68e83d64d0ea881f409bb543', // bin التبليغات
   BASE_URL: 'https://api.jsonbin.io/v3'
@@ -130,7 +130,7 @@ app.use(express.json());
 // ====== API Routes ======
 
 // عرض قائمة الأعضاء
-app.get('/members', async (req, res) => {
+app.get('/api/members', async (req, res) => {
   try {
     const { authCode, authToken } = req.query || {};
     if (!authCode || !authToken) {
@@ -164,7 +164,7 @@ app.get('/members', async (req, res) => {
 });
 
 // حذف عضو
-app.delete('/members/:code', async (req, res) => {
+app.delete('/api/members/:code', async (req, res) => {
   try {
     const { code } = req.params;
     const { authCode, authToken } = req.query || {};
@@ -202,7 +202,7 @@ app.delete('/members/:code', async (req, res) => {
 });
 
 // تسجيل الدخول
-app.post('/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { code, token } = req.body || {};
     if (!code) return res.status(400).json({ ok: false, error: 'الكود مطلوب' });
@@ -254,7 +254,7 @@ app.post('/auth/login', async (req, res) => {
 });
 
 // التحقق من أكواد النشر
-app.post('/auth/check', async (req, res) => {
+app.post('/api/auth/check', async (req, res) => {
   try {
     const { code } = req.body || {};
     if (!code) return res.status(400).json({ ok: false, error: 'الكود مطلوب' });
@@ -270,7 +270,7 @@ app.post('/auth/check', async (req, res) => {
 });
 
 // عرض التبليغات
-app.get('/announcements', async (req, res) => {
+app.get('/api/announcements', async (req, res) => {
   try {
     const annRec = await loadAnnouncementsRecord();
     const list = Array.from(annRec.announcements || []).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
@@ -281,7 +281,7 @@ app.get('/announcements', async (req, res) => {
 });
 
 // نشر تبليغ
-app.post('/announcements', async (req, res) => {
+app.post('/api/announcements', async (req, res) => {
   try {
     const { code, token, title, content } = req.body || {};
     if (!code || !token || !title || !content) {
@@ -318,7 +318,7 @@ app.post('/announcements', async (req, res) => {
 });
 
 // فحص صحي
-app.get('/health', async (req, res) => {
+app.get('/api/health', async (req, res) => {
   try {
     const configured = !!(BINJSON_API_KEY);
     const haveMembersId = !!BINJSON_MEMBERS_BIN_ID;

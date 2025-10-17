@@ -251,9 +251,21 @@
       showError(`يرجى إدخال كود ${userTypeText}`);
       return; 
     }
+    
+    // مؤشر تحميل
+    const submitBtn = els.loginForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري تسجيل الدخول...';
+    
+    const resetButton = () => {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    };
     try{
       const loginRes = await API.login(code);
       if(!loginRes.ok){
+        resetButton();
         if(loginRes.error && loginRes.error.includes('مرتبط مسبقاً')){
           showError('هذا الكود مرتبط بجهاز آخر. اطلب من المطور إعادة تعيين الكود.');
         } else if(loginRes.error && loginRes.error.includes('غير معروف')){
@@ -266,10 +278,12 @@
       }
       // التحقق من نوع المستخدم المناسب
       if(state.userType === 'admin' && !loginRes.isAdmin && !loginRes.isPublisher){
+        resetButton();
         showError('هذا الكود ليس لمسؤول. اراسل المطور للحصول على صلاحيات مسؤول.');
         return;
       }
       if(state.userType === 'member' && !loginRes.isMember){
+        resetButton();
         showError('هذا الكود ليس لبرلماني. تأكد من الكود أو اراسل المطور.');
         return;
       }
@@ -293,6 +307,7 @@
       if(state.isPublisher || state.isAdmin){ els.annForm.classList.remove('hidden'); } else { els.annForm.classList.add('hidden'); }
       await refreshAll();
     }catch(err){ 
+      resetButton();
       console.error('Login error:', err);
       if(err.message && err.message.includes('قاعدة البيانات')){
         showError('لا يمكن الاتصال بقاعدة البيانات. يرجى مراسلة المطور.');
