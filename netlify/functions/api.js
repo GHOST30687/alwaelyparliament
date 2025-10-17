@@ -1,9 +1,11 @@
 const axios = require('axios');
 const crypto = require('crypto');
 
-const API_KEY = '$2a$10$fla1BI8qDkOGpARIa8t3au.4.u5oSazuv41Fip1LQNuHLqt8GmFWi';
-const ADMINS_BIN = '68e83d25d0ea881f409bb525';
-const ANNOUNCEMENTS_BIN = '68e83d64d0ea881f409bb543';
+// ضع بيانات JSONBin الجديدة هنا
+const API_KEY = '$2a$10$NACq08Rx64mjDPX6vFDq0uuBecWecp8vaadu.oEPhQWNjz0P8KlsS';
+const MEMBERS_BIN = '68f25866ae596e708f18f0bb';     // بن البرلمانيين
+const ADMINS_BIN = '68f2582ed0ea881f40a8281e';       // بن المسؤولين
+const ANNOUNCEMENTS_BIN = '68e83d64d0ea881f409bb543'; // بن التبليغات
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -26,13 +28,25 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'الكود مطلوب' }) };
       }
 
-      const response = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
-        headers: { 'X-Master-Key': API_KEY }
-      });
-      
-      const data = response.data.record;
-      const isMember = data.members && data.members.includes(code);
-      const isAdmin = data.settings && data.settings.publisherCodes && data.settings.publisherCodes.includes(code);
+      // تحقق من بن البرلمانيين
+      let isMember = false;
+      try {
+        const memberResponse = await axios.get(`https://api.jsonbin.io/v3/b/${MEMBERS_BIN}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
+        const memberData = memberResponse.data.record;
+        isMember = memberData.includes && memberData.includes(code);
+      } catch (e) {}
+
+      // تحقق من بن المسؤولين
+      let isAdmin = false;
+      try {
+        const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
+        const adminData = adminResponse.data.record;
+        isAdmin = adminData.includes && adminData.includes(code);
+      } catch (e) {}
       
       if (!isMember && !isAdmin) {
         return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'الكود غير معروف' }) };
@@ -59,9 +73,8 @@ exports.handler = async (event, context) => {
       const response = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
-      
       const data = response.data.record;
-      const isAdmin = data.settings && data.settings.publisherCodes && data.settings.publisherCodes.includes(code);
+      const isAdmin = data.includes && data.includes(code);
       
       return {
         statusCode: 200,
@@ -79,12 +92,11 @@ exports.handler = async (event, context) => {
         return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'يتطلب تسجيل دخول' }) };
       }
 
-      const response = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+      const response = await axios.get(`https://api.jsonbin.io/v3/b/${MEMBERS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
-      
       const data = response.data.record;
-      const members = data.members || [];
+      const members = data || [];
       
       return {
         statusCode: 200,
@@ -98,7 +110,6 @@ exports.handler = async (event, context) => {
       const response = await axios.get(`https://api.jsonbin.io/v3/b/${ANNOUNCEMENTS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
-      
       const data = response.data.record;
       const list = (data.announcements || []).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
       
@@ -113,12 +124,11 @@ exports.handler = async (event, context) => {
     if (event.httpMethod === 'POST' && path === '/api/announcements') {
       const { code, title, content } = JSON.parse(event.body);
       
-      const response = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+      const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
-      
-      const adminData = response.data.record;
-      const isAdmin = adminData.settings && adminData.settings.publisherCodes && adminData.settings.publisherCodes.includes(code);
+      const adminData = adminResponse.data.record;
+      const isAdmin = adminData.includes && adminData.includes(code);
       
       if (!isAdmin) {
         return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'غير مخول للنشر' }) };
@@ -127,7 +137,6 @@ exports.handler = async (event, context) => {
       const annResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ANNOUNCEMENTS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
-      
       const annData = annResponse.data.record;
       const newAnn = {
         id: 'ANN-' + Date.now(),
@@ -153,10 +162,11 @@ exports.handler = async (event, context) => {
     return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };
 
   } catch (error) {
+    console.error('API Error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ ok: false, error: 'خطأ في الخادم' })
+      body: JSON.stringify({ ok: false, error: error.message || 'خطأ في الخادم' })
     };
   }
 };
