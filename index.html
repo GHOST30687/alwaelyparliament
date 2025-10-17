@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>البرلمان الطلابي - ثانوية الوائلي للمتميزين</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;600;700&family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="/assets/imgs/par-pic.jpg" type="image/jpeg">
+  </head>
+  <body>
+
+    <header class="site-header">
+      <div class="brand">
+        <div class="logo">ثانوية الوائلي للمتميزين</div>
+        <div class="subtitle">البرلمان الطلابي</div>
+      </div>
+      <nav class="actions">
+        <button id="backBtn" class="btn outline" type="button" title="رجوع">رجوع</button>
+        <button id="themeToggle" class="btn outline" title="تبديل الوضع" type="button">الوضع الداكن/الفاتح</button>
+      </nav>
+    </header>
+
+    <!-- خلفية أشكال متحركة -->
+    <div class="bg-shapes" aria-hidden="true">
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+      <span class="shape square"></span>
+      <span class="shape triangle"></span>
+    </div>
+
+    <main id="main" class="container main-landing">
+      <!-- صفحة البداية -->
+      <section id="landingView" class="card landing-card">
+        <h2 class="landing-title">اختر احد الازرار الأتية</h2>
+        <div class="btn-group three">
+          <button id="mpBtn" class="btn primary" type="button">أنا برلماني</button>
+          <button id="studentBtn" class="btn" type="button">أنا طالب</button>
+          <button id="adminBtn" class="btn" type="button">أنا مسؤول</button>
+        </div>
+        <div class="landing-credits">تطوير وبرمجة باقر أسعد حسين</div>
+      </section>
+
+      <!-- صفحة الدخول -->
+      <section id="loginView" class="card hidden">
+        <h2 id="loginTitle">تسجيل الدخول</h2>
+        <div id="loginHint" class="hint" style="text-align:center;margin-bottom:8px">أدخل الكود الخاص بك</div>
+        <form id="loginForm" class="grid">
+          <div class="form-field" style="grid-column: 1 / -1;">
+            <label id="loginLabel" for="loginCode">أدخل الكود</label>
+            <input id="loginCode" name="loginCode" type="text" placeholder="أدخل كودك" required />
+          </div>
+          <div class="form-actions" style="grid-column: 1 / -1;">
+            <button type="submit" class="btn primary">دخول</button>
+          </div>
+        </form>
+      </section>
+
+      <!-- قسم التبليغات -->
+      <section id="announcementsSection" class="card hidden">
+        <h2>التبليغات</h2>
+        <form id="annForm" class="grid hidden">
+          <div class="form-field">
+            <label for="annTitle">العنوان</label>
+            <input id="annTitle" name="annTitle" type="text" placeholder="عنوان التبليغ" />
+          </div>
+          <div class="form-field" style="grid-column: 1 / -1;">
+            <label for="annContent">المحتوى</label>
+            <textarea id="annContent" name="annContent" rows="3" placeholder="اكتب تفاصيل التبليغ"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn primary">نشر التبليغ</button>
+          </div>
+        </form>
+        <div id="annList" class="ann-list" style="margin-top:12px"></div>
+      </section>
+
+      <!-- قائمة الأعضاء -->
+      <section id="membersSection" class="card hidden">
+        <h2>قائمة البرلمانيين</h2>
+        <div class="table-wrapper">
+          <table class="table" id="membersTable">
+            <thead>
+              <tr>
+                <th>الكود</th>
+                <th>إجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="membersBody">
+              <tr><td colspan="2" style="text-align:center">لا توجد بيانات بعد</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- مكان رسائل التنبيه المتقدمة -->
+    <div id="toastRoot" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
