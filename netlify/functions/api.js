@@ -28,6 +28,8 @@ exports.handler = async (event, context) => {
         return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'الكود مطلوب' }) };
       }
 
+      const c = String(code).trim();
+
       // تحقق من بن البرلمانيين
       let isMember = false;
       try {
@@ -35,7 +37,8 @@ exports.handler = async (event, context) => {
           headers: { 'X-Master-Key': API_KEY }
         });
         const memberData = memberResponse.data.record;
-        isMember = memberData.includes && memberData.includes(code);
+        // البيانات يجب أن تكون object يحتوي على members array
+        isMember = memberData.members && Array.isArray(memberData.members) && memberData.members.includes(c);
       } catch (e) {}
 
       // تحقق من بن المسؤولين
@@ -45,7 +48,8 @@ exports.handler = async (event, context) => {
           headers: { 'X-Master-Key': API_KEY }
         });
         const adminData = adminResponse.data.record;
-        isAdmin = adminData.includes && adminData.includes(code);
+        // البيانات يجب أن تكون object يحتوي على admins array
+        isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
       } catch (e) {}
       
       if (!isMember && !isAdmin) {
@@ -62,7 +66,7 @@ exports.handler = async (event, context) => {
           isMember,
           isPublisher: isAdmin,
           isAdmin,
-          member: { code }
+          member: { code: c }
         })
       };
     }
@@ -70,11 +74,13 @@ exports.handler = async (event, context) => {
     // التحقق من الناشر
     if (event.httpMethod === 'POST' && path === '/api/auth/check') {
       const { code } = JSON.parse(event.body);
+      const c = String(code).trim();
       const response = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
       const data = response.data.record;
-      const isAdmin = data.includes && data.includes(code);
+      // البيانات يجب أن تكون object يحتوي على admins array
+      const isAdmin = data.admins && Array.isArray(data.admins) && data.admins.includes(c);
       
       return {
         statusCode: 200,
@@ -96,7 +102,8 @@ exports.handler = async (event, context) => {
         headers: { 'X-Master-Key': API_KEY }
       });
       const data = response.data.record;
-      const members = data || [];
+      // البيانات يجب أن تكون object يحتوي على members array
+      const members = (data.members && Array.isArray(data.members)) ? data.members : [];
       
       return {
         statusCode: 200,
@@ -123,12 +130,14 @@ exports.handler = async (event, context) => {
     // نشر تبليغ
     if (event.httpMethod === 'POST' && path === '/api/announcements') {
       const { code, title, content } = JSON.parse(event.body);
+      const c = String(code).trim();
       
       const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
         headers: { 'X-Master-Key': API_KEY }
       });
       const adminData = adminResponse.data.record;
-      const isAdmin = adminData.includes && adminData.includes(code);
+      // البيانات يجب أن تكون object يحتوي على admins array
+      const isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
       
       if (!isAdmin) {
         return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'غير مخول للنشر' }) };

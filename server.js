@@ -13,7 +13,7 @@ const PORT = process.env.PORT || 3000;
 // ====== إعدادات JSONBin ======
 const JSONBIN_CONFIG = {
   // X-Main-Key (مطلوب): الصقه هنا
-  X_MAIN_KEY: '$2a$10$fla1BI8qDkOGpARIa8t3au.4.u5oSazuv41Fip1LQNuHLqt8GmFWi',
+  X_MAIN_KEY: '$2a$10$NACq08Rx64mjDPX6vFDq0uuBecWecp8vaadu.oEPhQWNjz0P8KlsS',
   // Bin IDs (مطلوب): الصقها هنا
   MEMBERS_BIN_ID: '68f25866ae596e708f18f0bb',      // bin البرلمانيين - ضع ID الجديد هنا
   ADMINS_BIN_ID: '68f2582ed0ea881f40a8281e',       // bin المسؤولين/الناشرين - استخدم الـ bin الحالي
