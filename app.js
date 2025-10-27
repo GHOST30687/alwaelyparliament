@@ -350,9 +350,112 @@
     }
   }
 
+  async function refreshMessages(){
+    if(!state.isAdmin) return; // فقط للمسؤولين
+    try{
+      const { ok, data, error } = await API.messagesList(state.code, state.token);
+      if(!ok) throw new Error(error || 'فشل جلب الرسائل');
+      renderMessages(data);
+    }catch(err){
+      showError('تعذر تحميل رسائل الطلاب: ' + (err.message || err));
+      renderMessages([]);
+    }
+  }
+
+  function renderMessages(list){
+    const messagesList = document.getElementById('studentMessagesList');
+    const noMessages = document.getElementById('noStudentMessages');
+    if(!messagesList) return;
+    
+    messagesList.innerHTML = '';
+    
+    if(!list || !list.length){
+      noMessages && noMessages.classList.remove('hidden');
+      return;
+    }
+    
+    noMessages && noMessages.classList.add('hidden');
+    
+    list.forEach((msg, idx) => {
+      const card = document.createElement('div');
+      card.className = 'announcement-card';
+      const hijriDate = formatHijriDate(msg.createdAt);
+      card.innerHTML = `
+        <div class="announcement-info">
+          <h3 class="announcement-title">👤 ${escapeHtml(msg.name)}</h3>
+          <div class="announcement-date">
+            <span>🏫 ${escapeHtml(msg.grade)} - شعبة ${escapeHtml(msg.section)}</span>
+          </div>
+          <div class="announcement-date">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z"/>
+            </svg>
+            <span>${hijriDate}</span>
+          </div>
+        </div>
+        <div class="announcement-actions">
+          <button class="expand-msg-btn" data-msg-idx="${idx}">
+            <span>عرض الرسالة</span>
+            <span>→</span>
+          </button>
+        </div>
+      `;
+      messagesList.appendChild(card);
+    });
+    
+    // إضافة وظيفة التكبير
+    const expandButtons = messagesList.querySelectorAll('.expand-msg-btn');
+    expandButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-msg-idx'));
+        if(list[idx]) showMessageModal(list[idx]);
+      });
+    });
+  }
+
+  function showMessageModal(message){
+    const hijriDate = formatHijriDate(message.createdAt);
+    const time = formatTime(message.createdAt);
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="modal announcement-modal" role="dialog" aria-modal="true">
+        <div class="announcement-modal-header">
+          <button class="modal-close-btn" aria-label="إغلاق">X</button>
+        </div>
+        <div class="announcement-modal-body">
+          <h2 class="announcement-modal-title">📨 رسالة من ${escapeHtml(message.name)}</h2>
+          <div style="color: var(--muted); margin-bottom: 16px;">
+            <strong>🏫 الصف:</strong> ${escapeHtml(message.grade)} - شعبة ${escapeHtml(message.section)}
+          </div>
+          <div class="announcement-modal-content">${escapeHtml(message.message)}</div>
+          <div class="announcement-modal-footer">
+            <div class="announcement-modal-date">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5z"/>
+              </svg>
+              <span>${hijriDate}</span>
+            </div>
+            <div class="announcement-modal-time">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7V7z"/>
+              </svg>
+              <span>${time}</span>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(backdrop);
+    const cleanup = () => backdrop.remove();
+    backdrop.addEventListener('click', (e) => { if(e.target === backdrop) cleanup(); });
+    backdrop.querySelector('.modal-close-btn').addEventListener('click', cleanup);
+  }
+
   async function refreshAll(){
     await Promise.all([
-      refreshAnnouncements()
+      refreshAnnouncements(),
+      state.isAdmin ? refreshMessages() : Promise.resolve()
     ]);
     updateStats();
   }
@@ -377,6 +480,43 @@
     await refreshAnnouncements();
     showSuccess('تم نشر التبليغ 🎉');
   });
+
+  // إرسال رسالة طالب
+  const contactForm = document.getElementById('contactForm');
+  if(contactForm){
+    contactForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = (document.getElementById('studentName').value || '').trim();
+      const grade = (document.getElementById('studentGrade').value || '').trim();
+      const section = (document.getElementById('studentSection').value || '').trim();
+      const message = (document.getElementById('studentMessage').value || '').trim();
+      
+      if(!grade || !section || !message){
+        showError('يرجى إدخال جميع الحقول المطلوبة');
+        return;
+      }
+      
+      const submitBtn = contactForm.querySelector('button[type="submit"]');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جاري الإرسال...';
+      
+      try{
+        const payload = { name: name || 'غير معرف', grade, section, message };
+        const { ok, error } = await API.messagePost(payload);
+        if(!ok) throw new Error(error || 'فشل الإرسال');
+        
+        // إعادة تعيين النموذج
+        contactForm.reset();
+        showSuccess('تم إرسال رسالتك بنجاح 🚀');
+      }catch(err){
+        showError('تعذر إرسال الرسالة: ' + (err.message || err));
+      }finally{
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+      }
+    });
+  }
 
   // تسجيل الدخول
   els.loginForm.addEventListener('submit', async (e) => {
@@ -441,12 +581,14 @@
       // فقط المسؤولون يمكنهم رؤية الإحصائيات ونشر التبليغات
       if(state.isAdmin){
         els.statsSection && els.statsSection.classList.remove('hidden');
-        // إظهار قسم النشر في القائمة الجانبية
+        // إظهار قسم المسؤولين وإخفاء قسم الطلاب
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
+        document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
       } else {
         // البرلمانيون ليس لديهم صلاحيات - مثل الطلاب
         els.statsSection && els.statsSection.classList.add('hidden');
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
+        document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
       }
       // إزالة تمركز الدخول بعد تسجيل الدخول
       document.getElementById('main').classList.remove('main-login');
@@ -487,6 +629,9 @@
     els.loginView.classList.add('hidden');
     els.mainContentSection && els.mainContentSection.classList.remove('hidden');
     els.statsSection && els.statsSection.classList.add('hidden');
+    // إظهار روابط الطلاب وإخفاء روابط المسؤولين
+    document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
+    document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
     const main = document.getElementById('main');
     if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
     els.menuToggle && els.menuToggle.classList.remove('hidden');
@@ -821,6 +966,7 @@
         if(state.isAdmin){
           els.statsSection && els.statsSection.classList.remove('hidden');
           document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
+          document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
         }
         const main = document.getElementById('main');
         if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
@@ -835,6 +981,9 @@
       els.loginView.classList.add('hidden');
       els.mainContentSection && els.mainContentSection.classList.remove('hidden');
       els.statsSection && els.statsSection.classList.add('hidden');
+      // إظهار روابط الطلاب وإخفاء روابط المسؤولين
+      document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
+      document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
       els.menuToggle && els.menuToggle.classList.remove('hidden');
       const main = document.getElementById('main');
       if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }

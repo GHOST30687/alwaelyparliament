@@ -30,15 +30,31 @@
       <div class="side-nav-content">
         <h3>القائمة</h3>
         <nav class="nav-links">
-          <a href="#home" class="nav-link active" data-section="home">
+          <a href="#home" class="nav-link nav-link-student active" data-section="home">
             <span class="nav-icon">🖼️</span>
             <span>متصفح الصور</span>
           </a>
-          <a href="#announcements" class="nav-link" data-section="announcements">
+          <a href="#announcements" class="nav-link nav-link-student" data-section="announcements">
             <span class="nav-icon">📢</span>
             <span>آخر التبليغات</span>
           </a>
-          <a href="#archivedAnnouncements" class="nav-link" data-section="archivedAnnouncements">
+          <a href="#archivedAnnouncements" class="nav-link nav-link-student" data-section="archivedAnnouncements">
+            <span class="nav-icon">🗄️</span>
+            <span>التبليغات القديمة</span>
+          </a>
+          <a href="#contact" class="nav-link nav-link-student" data-section="contact">
+            <span class="nav-icon">📱</span>
+            <span>تواصل معنا</span>
+          </a>
+          <a href="#home" class="nav-link nav-link-admin hidden" data-section="home">
+            <span class="nav-icon">🖼️</span>
+            <span>متصفح الصور</span>
+          </a>
+          <a href="#announcements" class="nav-link nav-link-admin hidden" data-section="announcements">
+            <span class="nav-icon">📢</span>
+            <span>آخر التبليغات</span>
+          </a>
+          <a href="#archivedAnnouncements" class="nav-link nav-link-admin hidden" data-section="archivedAnnouncements">
             <span class="nav-icon">🗄️</span>
             <span>التبليغات القديمة</span>
           </a>
@@ -46,9 +62,9 @@
             <span class="nav-icon">✍️</span>
             <span>نشر تبليغ/صور</span>
           </a>
-          <a href="#contact" class="nav-link" data-section="contact">
-            <span class="nav-icon">📱</span>
-            <span>تواصل معنا</span>
+          <a href="#messages" class="nav-link nav-link-admin hidden" data-section="messages">
+            <span class="nav-icon">📨</span>
+            <span>رسائل الطلاب</span>
           </a>
         </nav>
       </div>
@@ -282,8 +298,11 @@
             </form>
           </div>
           
-          <!-- قسم رسائل الطلاب (للمسؤولين فقط) -->
-          <div class="card" id="studentMessagesCard" style="display: none;">
+        </div>
+        
+        <!-- قسم رسائل الطلاب (للمسؤولين فقط) -->
+        <div id="section-messages" class="scroll-section hidden">
+          <div class="card" id="studentMessagesCard">
             <h2>📨 رسائل الطلاب</h2>
             <div id="studentMessagesList" class="ann-list-vertical"></div>
             <div id="noStudentMessages" class="no-announcements-message hidden">

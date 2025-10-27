@@ -6,6 +6,7 @@ const API_KEY = '$2a$10$NACq08Rx64mjDPX6vFDq0uuBecWecp8vaadu.oEPhQWNjz0P8KlsS';
 const MEMBERS_BIN = '68f25866ae596e708f18f0bb';     // بن البرلمانيين
 const ADMINS_BIN = '68f2582ed0ea881f40a8281e';       // بن المسؤولين
 const ANNOUNCEMENTS_BIN = '68e83d64d0ea881f409bb543'; // بن التبليغات
+const MESSAGES_BIN = '68ff7c36d0ea881f40bfb081';        // بن رسائل الطلاب - أضف BIN ID هنا
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -165,6 +166,126 @@ exports.handler = async (event, context) => {
         statusCode: 201,
         headers,
         body: JSON.stringify({ ok: true, data: newAnn })
+      };
+    }
+
+    // حذف تبليغ
+    if (event.httpMethod === 'DELETE' && path.startsWith('/api/announcements/')) {
+      const query = event.queryStringParameters || {};
+      const { code, token } = query;
+      const id = path.replace('/api/announcements/', '');
+      
+      if (!code || !token) {
+        return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'يتطلب تسجيل دخول' }) };
+      }
+      
+      const c = String(code).trim();
+      
+      // التحقق من أن المستخدم مسؤول
+      const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const adminData = adminResponse.data.record;
+      const isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
+      
+      if (!isAdmin) {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'غير مخول للحذف' }) };
+      }
+      
+      // جلب التبليغات
+      const annResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ANNOUNCEMENTS_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const annData = annResponse.data.record;
+      
+      // حذف التبليغ
+      const originalLength = (annData.announcements || []).length;
+      annData.announcements = (annData.announcements || []).filter(a => a.id !== id);
+      
+      if (annData.announcements.length === originalLength) {
+        return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'التبليغ غير موجود' }) };
+      }
+      
+      // تحديث البيانات
+      await axios.put(`https://api.jsonbin.io/v3/b/${ANNOUNCEMENTS_BIN}`, annData, {
+        headers: { 'X-Master-Key': API_KEY, 'Content-Type': 'application/json' }
+      });
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true })
+      };
+    }
+
+    // إرسال رسالة طالب
+    if (event.httpMethod === 'POST' && path === '/api/messages') {
+      const { name, grade, section, message } = JSON.parse(event.body);
+      
+      if (!grade || !section || !message) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'يرجى إدخال جميع الحقول المطلوبة' }) };
+      }
+      
+      const msgResponse = await axios.get(`https://api.jsonbin.io/v3/b/${MESSAGES_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const msgData = msgResponse.data.record;
+      
+      const newMessage = {
+        id: 'MSG-' + Date.now(),
+        name: name || 'غير معرف',
+        grade,
+        section,
+        message,
+        createdAt: new Date().toISOString()
+      };
+      
+      msgData.messages = msgData.messages || [];
+      msgData.messages.push(newMessage);
+      
+      await axios.put(`https://api.jsonbin.io/v3/b/${MESSAGES_BIN}`, msgData, {
+        headers: { 'X-Master-Key': API_KEY, 'Content-Type': 'application/json' }
+      });
+      
+      return {
+        statusCode: 201,
+        headers,
+        body: JSON.stringify({ ok: true, data: newMessage })
+      };
+    }
+
+    // عرض رسائل الطلاب (للمسؤولين فقط)
+    if (event.httpMethod === 'GET' && path === '/api/messages') {
+      const query = event.queryStringParameters || {};
+      const { code, token } = query;
+      
+      if (!code || !token) {
+        return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'يتطلب تسجيل دخول' }) };
+      }
+      
+      const c = String(code).trim();
+      
+      // التحقق من أن المستخدم مسؤول
+      const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const adminData = adminResponse.data.record;
+      const isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
+      
+      if (!isAdmin) {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'غير مخول' }) };
+      }
+      
+      const msgResponse = await axios.get(`https://api.jsonbin.io/v3/b/${MESSAGES_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const msgData = msgResponse.data.record;
+      const list = (msgData.messages || []).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, data: list })
       };
     }
 
