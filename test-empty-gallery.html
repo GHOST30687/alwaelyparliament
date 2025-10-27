@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار شاشة عدم وجود الصور</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .test-title {
+            font-size: 1.8rem;
+            color: #0d1b2a;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .test-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .test-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+        .test-btn-primary {
+            background: #0d1b2a;
+            color: white;
+        }
+        .test-btn-primary:hover {
+            background: #1b263b;
+            transform: translateY(-2px);
+        }
+        .test-btn-secondary {
+            background: #c9a227;
+            color: white;
+        }
+        .test-btn-secondary:hover {
+            background: #b8911f;
+            transform: translateY(-2px);
+        }
+        .test-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 1px solid #bee5eb;
+        }
+        .test-info h4 {
+            margin: 0 0 10px;
+        }
+        .test-info ul {
+            margin: 10px 0;
+            padding-right: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-section">
+            <h1 class="test-title">🧪 اختبار شاشة عدم وجود الصور</h1>
+            
+            <div class="test-buttons">
+                <button class="test-btn test-btn-primary" onclick="testEmptyGallery()">
+                    📷 عرض شاشة فارغة
+                </button>
+                <button class="test-btn test-btn-secondary" onclick="testWithImages()">
+                    🖼️ عرض مع صور
+                </button>
+                <button class="test-btn test-btn-primary" onclick="testBrokenImages()">
+                    ⚠️ اختبار صور معطوبة
+                </button>
+            </div>
+
+            <div class="test-info">
+                <h4>📋 معلومات الاختبار:</h4>
+                <ul>
+                    <li>✅ الشاشة الفارغة تملأ القسم بالكامل</li>
+                    <li>✅ جميع أزرار التحكم والنقاط مخفية</li>
+                    <li>✅ التقليب التلقائي للصور متوقف تماماً</li>
+                    <li>✅ رسالة واضحة مع أيقونة متحركة</li>
+                    <li>✅ تصميم جذاب بتدرجات لونية</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Gallery Section -->
+        <div class="test-section">
+            <h2 class="main-title">🖼️ متصفح الصور</h2>
+            
+            <div class="image-slider" id="imageSlider">
+                <button class="slider-btn prev" id="sliderPrev">&lsaquo;</button>
+                <div class="slider-container">
+                    <div class="slider-track" id="sliderTrack">
+                        <!-- الصور ستضاف هنا -->
+                    </div>
+                </div>
+                <button class="slider-btn next" id="sliderNext">&rsaquo;</button>
+            </div>
+            <div class="slider-dots" id="sliderDots"></div>
+        </div>
+    </div>
+
+    <script>
+        const state = {
+            currentSlide: 0,
+            galleryImages: [],
+            autoSlideInterval: null
+        };
+
+        const els = {
+            sliderTrack: document.getElementById('sliderTrack'),
+            sliderPrev: document.getElementById('sliderPrev'),
+            sliderNext: document.getElementById('sliderNext'),
+            sliderDots: document.getElementById('sliderDots')
+        };
+
+        function showEmptyGalleryScreen(){
+            // إيقاف جميع عمليات التصفح
+            stopAutoSlide();
+            state.currentSlide = 0;
+            
+            // إخفاء جميع أزرار التحكم والنقاط
+            if(els.sliderPrev) els.sliderPrev.style.display = 'none';
+            if(els.sliderNext) els.sliderNext.style.display = 'none';
+            if(els.sliderDots) els.sliderDots.style.display = 'none';
+            
+            // عرض شاشة فارغة ثابتة تملأ القسم بالكامل
+            if(els.sliderTrack){
+                els.sliderTrack.innerHTML = `
+                    <div class="empty-gallery-screen">
+                        <div class="empty-gallery-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+                            </svg>
+                        </div>
+                        <h3 class="empty-gallery-title">لا توجد صور متاحة حالياً</h3>
+                        <p class="empty-gallery-subtitle">سيتم إضافة الصور قريباً</p>
+                    </div>
+                `;
+                // إزالة أي حركة transform
+                els.sliderTrack.style.transform = 'none';
+            }
+        }
+
+        function renderGallery(){
+            if(!els.sliderTrack) return;
+            
+            // فحص حالة عدم وجود صور أو قائمة فارغة
+            if(!state.galleryImages || state.galleryImages.length === 0){
+                showEmptyGalleryScreen();
+                return;
+            }
+            
+            // مسح المحتوى السابق
+            els.sliderTrack.innerHTML = '';
+            els.sliderTrack.style.transform = '';
+            
+            // إظهار أزرار التحكم فقط إذا كان هناك أكثر من صورة
+            if(state.galleryImages.length > 1){
+                if(els.sliderPrev) els.sliderPrev.style.display = '';
+                if(els.sliderNext) els.sliderNext.style.display = '';
+                if(els.sliderDots) els.sliderDots.style.display = '';
+            } else {
+                // إخفاء الأزرار إذا كانت صورة واحدة فقط
+                if(els.sliderPrev) els.sliderPrev.style.display = 'none';
+                if(els.sliderNext) els.sliderNext.style.display = 'none';
+                if(els.sliderDots) els.sliderDots.style.display = 'none';
+            }
+            
+            // إضافة الصور
+            state.galleryImages.forEach((imgUrl, idx) => {
+                const item = document.createElement('div');
+                item.className = 'slider-item';
+                const img = document.createElement('img');
+                img.src = imgUrl;
+                img.alt = `صورة ${idx + 1}`;
+                img.loading = 'lazy';
+                
+                item.appendChild(img);
+                els.sliderTrack.appendChild(item);
+            });
+            
+            // ترتيب عرض الصور
+            renderDots();
+            updateSliderPosition();
+            startAutoSlide();
+        }
+
+        function renderDots(){
+            if(!els.sliderDots) return;
+            els.sliderDots.innerHTML = '';
+            state.galleryImages.forEach((_, idx) => {
+                const dot = document.createElement('span');
+                dot.className = 'slider-dot' + (idx === state.currentSlide ? ' active' : '');
+                dot.addEventListener('click', () => {
+                    state.currentSlide = idx;
+                    updateSliderPosition();
+                });
+                els.sliderDots.appendChild(dot);
+            });
+        }
+
+        function updateSliderPosition(){
+            if(!els.sliderTrack) return;
+            els.sliderTrack.style.transform = `translateX(${state.currentSlide * 100}%)`;
+            if(els.sliderDots){
+                els.sliderDots.querySelectorAll('.slider-dot').forEach((dot, idx) => {
+                    dot.classList.toggle('active', idx === state.currentSlide);
+                });
+            }
+        }
+
+        function startAutoSlide(){
+            stopAutoSlide();
+            if(!state.galleryImages || state.galleryImages.length <= 1) return;
+            state.autoSlideInterval = setInterval(() => {
+                if(state.currentSlide >= state.galleryImages.length - 1){
+                    state.currentSlide = 0;
+                } else {
+                    state.currentSlide++;
+                }
+                updateSliderPosition();
+            }, 4000);
+        }
+
+        function stopAutoSlide(){
+            if(state.autoSlideInterval){
+                clearInterval(state.autoSlideInterval);
+                state.autoSlideInterval = null;
+            }
+        }
+
+        // Test Functions
+        function testEmptyGallery(){
+            state.galleryImages = [];
+            renderGallery();
+        }
+
+        function testWithImages(){
+            state.galleryImages = [
+                'https://via.placeholder.com/800x500/0d1b2a/c9a227?text=صورة+1',
+                'https://via.placeholder.com/800x500/1b263b/c9a227?text=صورة+2',
+                'https://via.placeholder.com/800x500/0d1b2a/c9a227?text=صورة+3'
+            ];
+            renderGallery();
+        }
+
+        function testBrokenImages(){
+            state.galleryImages = [
+                'broken-image-1.jpg',
+                'broken-image-2.jpg',
+                'broken-image-3.jpg'
+            ];
+            renderGallery();
+        }
+
+        // Initialize with empty gallery
+        testEmptyGallery();
+
+        // Event listeners for slider buttons
+        els.sliderPrev?.addEventListener('click', () => {
+            if(state.currentSlide > 0){
+                state.currentSlide--;
+                updateSliderPosition();
+            }
+        });
+
+        els.sliderNext?.addEventListener('click', () => {
+            if(state.currentSlide < state.galleryImages.length - 1){
+                state.currentSlide++;
+                updateSliderPosition();
+            }
+        });
+    </script>
+</body>
+</html>

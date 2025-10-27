@@ -15,10 +15,11 @@ const JSONBIN_CONFIG = {
   // X-Main-Key (مطلوب): الصقه هنا
   X_MAIN_KEY: '$2a$10$NACq08Rx64mjDPX6vFDq0uuBecWecp8vaadu.oEPhQWNjz0P8KlsS',
   // Bin IDs (مطلوب): الصقها هنا
-  MEMBERS_BIN_ID: '68f25866ae596e708f18f0bb',      // bin البرلمانيين - ضع ID الجديد هنا
-  ADMINS_BIN_ID: '68f2582ed0ea881f40a8281e',       // bin المسؤولين/الناشرين - استخدم الـ bin الحالي
-  ANNOUNCEMENTS_BIN_ID: '68e83d64d0ea881f409bb543', // bin التبليغات
-  MESSAGES_BIN_ID: '68ff7c36d0ea881f40bfb081',                             // bin رسائل الطلاب - أضف ID جديد هنا
+  MEMBERS_BIN_ID: '68f25866ae596e708f18f0bb',      // bin البرلمانيين
+  ADMINS_BIN_ID: '68f2582ed0ea881f40a8281e',       // bin المسؤولين/الناشرين
+  ANNOUNCEMENTS_BIN_ID: '68e83d64d0ea881f409bb543', // bin التبليغات (دائمة)
+  MESSAGES_BIN_ID: '68ff7c36d0ea881f40bfb081',      // bin رسائل الطلاب
+  GALLERY_BIN_ID: '68ff88d943b1c97be984d4a9',        // bin معرض الصور (مؤقتة - تُحذف بعد 24 ساعة)
   BASE_URL: 'https://api.jsonbin.io/v3'
 };
 
@@ -29,6 +30,7 @@ const BINJSON_MEMBERS_BIN_ID = JSONBIN_CONFIG.MEMBERS_BIN_ID;
 const BINJSON_ADMINS_BIN_ID = JSONBIN_CONFIG.ADMINS_BIN_ID;
 const BINJSON_ANNOUNCEMENTS_BIN_ID = JSONBIN_CONFIG.ANNOUNCEMENTS_BIN_ID;
 const BINJSON_MESSAGES_BIN_ID = JSONBIN_CONFIG.MESSAGES_BIN_ID;
+const BINJSON_GALLERY_BIN_ID = JSONBIN_CONFIG.GALLERY_BIN_ID;
 
 // ترويسات الاعتماد
 const MAIN_KEY_HEADER = 'X-Main-Key';
@@ -50,6 +52,10 @@ function initialAnnouncementsRecord() {
 
 function initialMessagesRecord() {
   return { messages: [] };
+}
+
+function initialGalleryRecord() {
+  return { images: [] };
 }
 
 function normalizeMembersRecord(rec) {
@@ -75,6 +81,12 @@ function normalizeAnnouncementsRecord(rec) {
 function normalizeMessagesRecord(rec) {
   if (!rec || typeof rec !== 'object') return initialMessagesRecord();
   if (!Array.isArray(rec.messages)) rec.messages = [];
+  return rec;
+}
+
+function normalizeGalleryRecord(rec) {
+  if (!rec || typeof rec !== 'object') return initialGalleryRecord();
+  if (!Array.isArray(rec.images)) rec.images = [];
   return rec;
 }
 
@@ -166,9 +178,31 @@ async function saveMessagesRecord(record) {
   return record;
 }
 
+async function loadGalleryRecord() {
+  if(!BINJSON_GALLERY_BIN_ID) return initialGalleryRecord();
+  try{
+    const binId = await ensureBin(BINJSON_GALLERY_BIN_ID, 'معرض الصور');
+    const { data } = await api.get(`/b/${binId}/latest`, {
+      headers: { [MAIN_KEY_HEADER]: BINJSON_API_KEY }
+    });
+    return normalizeGalleryRecord(data?.record || data);
+  }catch{
+    return initialGalleryRecord();
+  }
+}
+
+async function saveGalleryRecord(record) {
+  if(!BINJSON_GALLERY_BIN_ID) throw new Error('لم يتم ضبط Bin معرض الصور');
+  const binId = await ensureBin(BINJSON_GALLERY_BIN_ID, 'معرض الصور');
+  await api.put(`/b/${binId}`, { record }, {
+    headers: { [MAIN_KEY_HEADER]: BINJSON_API_KEY, 'Content-Type': 'application/json' }
+  });
+  return record;
+}
+
 // ====== إعدادات الخادم ======
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // زيادة الحد لرفع الصور
 app.use(express.static(path.join(__dirname)));
 
 // ====== API Endpoints ======
@@ -343,7 +377,7 @@ app.get('/api/announcements', async (req, res) => {
 // نشر تبليغ
 app.post('/api/announcements', async (req, res) => {
   try {
-    const { code, token, title, content, imageUrl } = req.body || {};
+    const { code, token, title, content, imageUrl, imageData } = req.body || {};
     if (!code || !token || !title || !content) {
       return res.status(400).json({ ok: false, error: 'الكود والرمز والعنوان والمحتوى مطلوبة' });
     }
@@ -368,7 +402,9 @@ app.post('/api/announcements', async (req, res) => {
       createdAt: new Date().toISOString()
     };
     
+    // دعم رفع صور من رابط أو ملف
     if(imageUrl) ann.imageUrl = String(imageUrl).trim();
+    if(imageData) ann.imageUrl = imageData; // صور Data URL
 
     const annRec = await loadAnnouncementsRecord();
     annRec.announcements.push(ann);
@@ -519,6 +555,167 @@ app.get('/api/messages', async (req, res) => {
     res.status(500).json({ ok: false, error: err.message || 'خطأ غير متوقع' });
   }
 });
+
+// ====== معرض الصور ======
+
+// حذف الصور القديمة (أكثر من 24 ساعة)
+async function cleanOldGalleryImages() {
+  try {
+    const galleryRec = await loadGalleryRecord();
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    
+    const before = galleryRec.images.length;
+    galleryRec.images = galleryRec.images.filter(img => {
+      const createdTime = new Date(img.createdAt).getTime();
+      const age = now - createdTime;
+      return age < oneDayMs; // الإبقاء على الصور الأحدث من 24 ساعة
+    });
+    
+    if (galleryRec.images.length !== before) {
+      await saveGalleryRecord(galleryRec);
+      console.log(`تم حذف ${before - galleryRec.images.length} صور قديمة`);
+    }
+  } catch (err) {
+    console.error('خطأ في حذف الصور القديمة:', err.message);
+  }
+}
+
+// تشغيل تنظيف تلقائي كل ساعة
+setInterval(cleanOldGalleryImages, 60 * 60 * 1000);
+// تنظيف عند بدء الخادم
+cleanOldGalleryImages();
+
+// عرض صور المعرض
+app.get('/api/gallery', async (req, res) => {
+  try {
+    const galleryRec = await loadGalleryRecord();
+    // تصفية الصور القديمة قبل الإرجاع
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const validImages = galleryRec.images.filter(img => {
+      const createdTime = new Date(img.createdAt).getTime();
+      const age = now - createdTime;
+      return age < oneDayMs;
+    });
+    
+    // ترتيب من الأحدث إلى الأقدم
+    const sorted = validImages.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    res.json({ ok: true, data: sorted });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message || 'خطأ غير متوقع' });
+  }
+});
+
+// إضافة صورة للمعرض (للمسؤولين فقط)
+app.post('/api/gallery', async (req, res) => {
+  try {
+    const { code, token, imageUrl, imageData } = req.body || {};
+    
+    if (!code || !token) {
+      return res.status(401).json({ ok: false, error: 'يتطلب تسجيل الدخول' });
+    }
+    
+    if (!imageUrl && !imageData) {
+      return res.status(400).json({ ok: false, error: 'يجب توفير رابط صورة أو بيانات الصورة' });
+    }
+    
+    const c = String(code).trim();
+    const adminsRec = await loadAdminsRecord();
+    const isAdmin = adminsRec.admins.includes(c);
+    
+    if (!isAdmin) {
+      return res.status(403).json({ ok: false, error: 'فقط المسؤولون يمكنهم إضافة الصور' });
+    }
+    
+    const binding = adminsRec.bindings[c];
+    if (!binding || binding.token !== token) {
+      return res.status(401).json({ ok: false, error: 'جلسة غير صالحة' });
+    }
+    
+    const image = {
+      id: 'IMG-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+      url: imageUrl || imageData, // رابط أو Data URL
+      createdAt: new Date().toISOString()
+    };
+    
+    const galleryRec = await loadGalleryRecord();
+    galleryRec.images.push(image);
+    await saveGalleryRecord(galleryRec);
+    
+    res.status(201).json({ ok: true, data: image });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message || 'خطأ غير متوقع' });
+  }
+});
+
+// حذف صورة من المعرض (للمسؤولين فقط)
+app.delete('/api/gallery/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { code, token } = req.query || {};
+    
+    if (!code || !token) {
+      return res.status(401).json({ ok: false, error: 'يتطلب الحذف تسجيل الدخول' });
+    }
+    
+    const c = String(code).trim();
+    const adminsRec = await loadAdminsRecord();
+    const isAdmin = adminsRec.admins.includes(c);
+    
+    if (!isAdmin) {
+      return res.status(403).json({ ok: false, error: 'فقط المسؤولون يمكنهم حذف الصور' });
+    }
+    
+    const binding = adminsRec.bindings[c];
+    if (!binding || binding.token !== token) {
+      return res.status(401).json({ ok: false, error: 'جلسة غير صالحة' });
+    }
+    
+    const galleryRec = await loadGalleryRecord();
+    const before = galleryRec.images.length;
+    galleryRec.images = galleryRec.images.filter(img => img.id !== id);
+    
+    if (galleryRec.images.length === before) {
+      return res.status(404).json({ ok: false, error: 'الصورة غير موجودة' });
+    }
+    
+    await saveGalleryRecord(galleryRec);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message || 'خطأ غير متوقع' });
+  }
+});
+
+// تنظيف تلقائي للصور القديمة (أكثر من 24 ساعة)
+async function cleanupOldGalleryImages() {
+  if(!BINJSON_GALLERY_BIN_ID) return;
+  
+  try {
+    const galleryRec = await loadGalleryRecord();
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    
+    const before = galleryRec.images.length;
+    galleryRec.images = galleryRec.images.filter(img => {
+      const createdTime = new Date(img.createdAt).getTime();
+      const age = now - createdTime;
+      return age < oneDayMs; // الإبقاء على الصور الأحدث من 24 ساعة
+    });
+    
+    if(galleryRec.images.length < before){
+      await saveGalleryRecord(galleryRec);
+      console.log(`تم حذف ${before - galleryRec.images.length} صور قديمة من المعرض`);
+    }
+  } catch (err) {
+    console.error('خطأ في تنظيف الصور القديمة:', err.message);
+  }
+}
+
+// تشغيل التنظيف كل ساعة
+setInterval(cleanupOldGalleryImages, 60 * 60 * 1000); // كل ساعة
+// تشغيل التنظيف عند بدء الخادم
+cleanupOldGalleryImages();
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

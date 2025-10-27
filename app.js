@@ -13,7 +13,11 @@
     annDelete: async (id, code, token) => (await fetch(`/api/announcements/${encodeURIComponent(id)}?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`, { method: 'DELETE' })).json(),
     // رسائل الطلاب
     messagePost: async (payload) => (await fetch('/api/messages', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })).json(),
-    messagesList: async (code, token) => (await fetch(`/api/messages?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`)).json()
+    messagesList: async (code, token) => (await fetch(`/api/messages?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`)).json(),
+    // معرض الصور
+    galleryList: async () => (await fetch('/api/gallery')).json(),
+    galleryPost: async (payload) => (await fetch('/api/gallery', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })).json(),
+    galleryDelete: async (id, code, token) => (await fetch(`/api/gallery/${encodeURIComponent(id)}?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`, { method: 'DELETE' })).json()
   };
 
   // معلومات محفوظة للاستخدام المستقبلي (غير مستخدمة الآن)
@@ -462,23 +466,95 @@
 
 
 
+  // تبديل أزرار التبليغات
+  const annOptionTabs = document.querySelectorAll('.option-tab-ann');
+  annOptionTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const option = tab.getAttribute('data-option');
+      annOptionTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.upload-option-content-ann').forEach(c => c.classList.add('hidden'));
+      if(option === 'file'){
+        document.getElementById('annUploadOptionFile')?.classList.remove('hidden');
+      } else if(option === 'url'){
+        document.getElementById('annUploadOptionUrl')?.classList.remove('hidden');
+      }
+    });
+  });
+
   // نشر تبليغ
   els.annForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if(!state.isAdmin){ showError('فقط المسؤولون يمكنهم نشر التبليغات'); return; }
+    
     const title = (els.annTitle.value || '').trim();
     const content = (els.annContent.value || '').trim();
-    const imageUrl = (els.annImageUrl.value || '').trim();
     if(!title || !content){ showError('يرجى إدخال العنوان والمحتوى'); return; }
-    const payload = { code: state.code, token: state.token, title, content };
-    if(imageUrl) payload.imageUrl = imageUrl;
-    const { ok, data, error } = await API.annPost(payload);
-    if(!ok){ showError('تعذر النشر: ' + (error || '')); return; }
-    els.annTitle.value = '';
-    els.annContent.value = '';
-    els.annImageUrl.value = '';
-    await refreshAnnouncements();
-    showSuccess('تم نشر التبليغ 🎉');
+    
+    const submitBtn = els.annForm.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'جاري النشر...';
+    
+    try{
+      // تحديد أي خيار نشط
+      const activeAnnTab = document.querySelector('.option-tab-ann.active');
+      const annOption = activeAnnTab?.getAttribute('data-option');
+      
+      const payload = { code: state.code, token: state.token, title, content };
+      
+      if(annOption === 'file'){
+        // رفع ملف محلي
+        const fileInput = document.getElementById('annImageFile');
+        const file = fileInput?.files[0];
+        if(file){
+          // فحص حجم الملف (5MB كحد أقصى)
+          if(file.size > 5 * 1024 * 1024){
+            showError('حجم الصورة يجب ألا يتجاوز 5MB');
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+            return;
+          }
+          // تحويل الصورة إلى Data URL
+          const reader = new FileReader();
+          await new Promise((resolve, reject) => {
+            reader.onload = (ev) => {
+              payload.imageData = ev.target.result;
+              resolve();
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+        }
+      } else if(annOption === 'url'){
+        // إضافة رابط
+        const url = (els.annImageUrl.value || '').trim();
+        if(url) payload.imageUrl = url;
+      }
+      
+      const { ok, data, error } = await API.annPost(payload);
+      if(!ok) throw new Error(error || 'فشل النشر');
+      
+      // إعادة تعيين النموذج
+      els.annTitle.value = '';
+      els.annContent.value = '';
+      els.annImageUrl.value = '';
+      const annImageFile = document.getElementById('annImageFile');
+      if(annImageFile) annImageFile.value = '';
+      
+      // إعادة تعيين التبويب للخيار الافتراضي
+      annOptionTabs.forEach(t => t.classList.remove('active'));
+      document.querySelector('.option-tab-ann[data-option="none"]')?.classList.add('active');
+      document.querySelectorAll('.upload-option-content-ann').forEach(c => c.classList.add('hidden'));
+      
+      await refreshAnnouncements();
+      showSuccess('تم نشر التبليغ 🎉');
+    }catch(err){
+      showError('تعذر النشر: ' + (err.message || err));
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    }
   });
 
   // إرسال رسالة طالب
@@ -578,23 +654,27 @@
       els.mainContentSection && els.mainContentSection.classList.remove('hidden');
       els.menuToggle && els.menuToggle.classList.remove('hidden');
       
+      // إخفاء أقسام النشر والرسائل افتراضياً عن الجميع
+      document.getElementById('section-publish')?.classList.add('hidden');
+      document.getElementById('section-messages')?.classList.add('hidden');
+      
       // فقط المسؤولون يمكنهم رؤية الإحصائيات ونشر التبليغات
       if(state.isAdmin){
         els.statsSection && els.statsSection.classList.remove('hidden');
         // إظهار قسم المسؤولين وإخفاء قسم الطلاب
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
         document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
-        // إظهار أقسام النشر والرسائل
-        document.getElementById('section-publish') && document.getElementById('section-publish').classList.remove('hidden');
-        document.getElementById('section-messages') && document.getElementById('section-messages').classList.remove('hidden');
+        // إظهار أقسام النشر والرسائل للمسؤولين فقط
+        document.getElementById('section-publish')?.classList.remove('hidden');
+        document.getElementById('section-messages')?.classList.remove('hidden');
       } else {
-        // البرلمانيون ليس لديهم صلاحيات - مثل الطلاب
+        // البرلمانيون والطلاب ليس لديهم صلاحيات النشر
         els.statsSection && els.statsSection.classList.add('hidden');
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
         document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
-        // إخفاء أقسام النشر والرسائل
-        document.getElementById('section-publish') && document.getElementById('section-publish').classList.add('hidden');
-        document.getElementById('section-messages') && document.getElementById('section-messages').classList.add('hidden');
+        // التأكد من إخفاء أقسام النشر والرسائل
+        document.getElementById('section-publish')?.classList.add('hidden');
+        document.getElementById('section-messages')?.classList.add('hidden');
       }
       // إزالة تمركز الدخول بعد تسجيل الدخول
       document.getElementById('main').classList.remove('main-login');
@@ -638,6 +718,9 @@
     // إظهار روابط الطلاب وإخفاء روابط المسؤولين
     document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
     document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
+    // إخفاء أقسام النشر والرسائل عن الطلاب
+    document.getElementById('section-publish')?.classList.add('hidden');
+    document.getElementById('section-messages')?.classList.add('hidden');
     const main = document.getElementById('main');
     if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
     els.menuToggle && els.menuToggle.classList.remove('hidden');
@@ -747,34 +830,73 @@
   });
 
   // ===== Image Gallery/Slider =====
-  function initGallery(){
-    // Load demo images or from storage
-    state.galleryImages = [
-      'https://via.placeholder.com/800x500/0d1b2a/c9a227?text=صورة+توضيحية+1',
-      'https://via.placeholder.com/800x500/1b263b/c9a227?text=صورة+توضيحية+2',
-      'https://via.placeholder.com/800x500/0d1b2a/c9a227?text=صورة+توضيحية+3'
-    ];
-    renderGallery();
+  async function initGallery(){
+    try{
+      const { ok, data, error } = await API.galleryList();
+      if(!ok) throw new Error(error || 'فشل جلب الصور');
+      state.galleryImages = (data || []).map(img => img.url);
+      renderGallery();
+    }catch(err){
+      console.error('خطأ في تحميل المعرض:', err);
+      state.galleryImages = [];
+      renderGallery();
+    }
+  }
+
+  function showEmptyGalleryScreen(){
+    // إيقاف جميع عمليات التصفح
+    stopAutoSlide();
+    state.currentSlide = 0;
+    
+    // إخفاء جميع أزرار التحكم والنقاط
+    if(els.sliderPrev) els.sliderPrev.style.display = 'none';
+    if(els.sliderNext) els.sliderNext.style.display = 'none';
+    if(els.sliderDots) els.sliderDots.style.display = 'none';
+    
+    // عرض شاشة فارغة ثابتة تملأ القسم بالكامل
+    if(els.sliderTrack){
+      els.sliderTrack.innerHTML = `
+        <div class="empty-gallery-screen">
+          <div class="empty-gallery-icon">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/>
+            </svg>
+          </div>
+          <h3 class="empty-gallery-title">لا توجد صور متاحة حالياً</h3>
+          <p class="empty-gallery-subtitle">سيتم إضافة الصور قريباً</p>
+        </div>
+      `;
+      // إزالة أي حركة transform
+      els.sliderTrack.style.transform = 'none';
+    }
   }
 
   function renderGallery(){
     if(!els.sliderTrack) return;
-    els.sliderTrack.innerHTML = '';
+    
+    // فحص حالة عدم وجود صور أو قائمة فارغة
     if(!state.galleryImages || state.galleryImages.length === 0){
-      els.sliderTrack.innerHTML = '<div class="empty-gallery">لا توجد صور متاحة حالياً</div>';
-      // إخفاء أزرار التنقل والنقاط
-      if(els.sliderPrev) els.sliderPrev.style.display = 'none';
-      if(els.sliderNext) els.sliderNext.style.display = 'none';
-      if(els.sliderDots) els.sliderDots.style.display = 'none';
-      stopAutoSlide();
+      showEmptyGalleryScreen();
       return;
     }
     
-    // إظهار أزرار التنقل مرة أخرى
-    if(els.sliderPrev) els.sliderPrev.style.display = '';
-    if(els.sliderNext) els.sliderNext.style.display = '';
-    if(els.sliderDots) els.sliderDots.style.display = '';
+    // مسح المحتوى السابق
+    els.sliderTrack.innerHTML = '';
+    els.sliderTrack.style.transform = '';
     
+    // إظهار أزرار التحكم فقط إذا كان هناك أكثر من صورة
+    if(state.galleryImages.length > 1){
+      if(els.sliderPrev) els.sliderPrev.style.display = '';
+      if(els.sliderNext) els.sliderNext.style.display = '';
+      if(els.sliderDots) els.sliderDots.style.display = '';
+    } else {
+      // إخفاء الأزرار إذا كانت صورة واحدة فقط
+      if(els.sliderPrev) els.sliderPrev.style.display = 'none';
+      if(els.sliderNext) els.sliderNext.style.display = 'none';
+      if(els.sliderDots) els.sliderDots.style.display = 'none';
+    }
+    
+    // إضافة الصور
     state.galleryImages.forEach((imgUrl, idx) => {
       const item = document.createElement('div');
       item.className = 'slider-item';
@@ -783,15 +905,11 @@
       img.alt = `صورة ${idx + 1}`;
       img.loading = 'lazy';
       
-      // معالجة أخطاء تحميل الصور
-      img.onerror = () => {
-        stopAutoSlide();
-        item.innerHTML = '<div class="empty-gallery">لا توجد صور متاحة حالياً</div>';
-      };
-      
       item.appendChild(img);
       els.sliderTrack.appendChild(item);
     });
+    
+    // ترتيب عرض الصور
     renderDots();
     updateSliderPosition();
     updateSliderControls();
@@ -927,13 +1045,21 @@
         }
         // تحويل الصورة إلى Data URL
         const reader = new FileReader();
-        reader.onload = (ev) => {
+        reader.onload = async (ev) => {
           const dataUrl = ev.target.result;
-          state.galleryImages.push(dataUrl);
-          fileInput.value = '';
-          renderGallery();
-          showSuccess('تم إضافة الصورة بنجاح');
-          // TODO: حفظ في قاعدة البيانات
+          try{
+            const { ok, error } = await API.galleryPost({
+              code: state.code,
+              token: state.token,
+              imageData: dataUrl
+            });
+            if(!ok) throw new Error(error);
+            fileInput.value = '';
+            await initGallery();
+            showSuccess('تم إضافة الصورة بنجاح 🎉');
+          }catch(err){
+            showError('فشل رفع الصورة: ' + (err.message || err));
+          }
         };
         reader.onerror = () => {
           showError('فشل قراءة الصورة');
@@ -946,11 +1072,19 @@
           showError('يرجى إدخال رابط الصورة');
           return;
         }
-        state.galleryImages.push(url);
-        els.galleryImageUrl.value = '';
-        renderGallery();
-        showSuccess('تم إضافة الصورة بنجاح');
-        // TODO: حفظ في قاعدة البيانات
+        try{
+          const { ok, error } = await API.galleryPost({
+            code: state.code,
+            token: state.token,
+            imageUrl: url
+          });
+          if(!ok) throw new Error(error);
+          els.galleryImageUrl.value = '';
+          await initGallery();
+          showSuccess('تم إضافة الصورة بنجاح 🎉');
+        }catch(err){
+          showError('فشل إضافة الصورة: ' + (err.message || err));
+        }
       }
     });
   }
@@ -974,14 +1108,18 @@
         els.loginView.classList.add('hidden');
         els.mainContentSection && els.mainContentSection.classList.remove('hidden');
         els.menuToggle && els.menuToggle.classList.remove('hidden');
+      // إخفاء أقسام النشر والرسائل افتراضياً
+        document.getElementById('section-publish')?.classList.add('hidden');
+        document.getElementById('section-messages')?.classList.add('hidden');
+        
         // فقط المسؤولون يمكنهم النشر
         if(state.isAdmin){
           els.statsSection && els.statsSection.classList.remove('hidden');
           document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
           document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
-          // إظهار أقسام النشر والرسائل
-          document.getElementById('section-publish') && document.getElementById('section-publish').classList.remove('hidden');
-          document.getElementById('section-messages') && document.getElementById('section-messages').classList.remove('hidden');
+          // إظهار أقسام النشر والرسائل للمسؤولين فقط
+          document.getElementById('section-publish')?.classList.remove('hidden');
+          document.getElementById('section-messages')?.classList.remove('hidden');
         }
         const main = document.getElementById('main');
         if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
@@ -999,6 +1137,9 @@
       // إظهار روابط الطلاب وإخفاء روابط المسؤولين
       document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
       document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
+      // إخفاء أقسام النشر والرسائل عن الطلاب
+      document.getElementById('section-publish')?.classList.add('hidden');
+      document.getElementById('section-messages')?.classList.add('hidden');
       els.menuToggle && els.menuToggle.classList.remove('hidden');
       const main = document.getElementById('main');
       if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }

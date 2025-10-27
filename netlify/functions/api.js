@@ -6,7 +6,8 @@ const API_KEY = '$2a$10$NACq08Rx64mjDPX6vFDq0uuBecWecp8vaadu.oEPhQWNjz0P8KlsS';
 const MEMBERS_BIN = '68f25866ae596e708f18f0bb';     // بن البرلمانيين
 const ADMINS_BIN = '68f2582ed0ea881f40a8281e';       // بن المسؤولين
 const ANNOUNCEMENTS_BIN = '68e83d64d0ea881f409bb543'; // بن التبليغات
-const MESSAGES_BIN = '68ff7c36d0ea881f40bfb081';        // بن رسائل الطلاب - أضف BIN ID هنا
+const MESSAGES_BIN = '68ff7c36d0ea881f40bfb081';        // بن رسائل الطلاب
+const GALLERY_BIN = '68ff88d943b1c97be984d4a9';        // بن معرض الصور
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -130,7 +131,7 @@ exports.handler = async (event, context) => {
 
     // نشر تبليغ
     if (event.httpMethod === 'POST' && path === '/api/announcements') {
-      const { code, title, content } = JSON.parse(event.body);
+      const { code, title, content, imageUrl, imageData } = JSON.parse(event.body);
       const c = String(code).trim();
       
       const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
@@ -154,6 +155,10 @@ exports.handler = async (event, context) => {
         content,
         createdAt: new Date().toISOString()
       };
+      
+      // دعم رفع صور من رابط أو ملف
+      if(imageUrl) newAnn.imageUrl = imageUrl;
+      if(imageData) newAnn.imageUrl = imageData;
       
       annData.announcements = annData.announcements || [];
       annData.announcements.push(newAnn);
@@ -287,6 +292,133 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({ ok: true, data: list })
       };
+    }
+
+    // ==== معرض الصور ====
+    
+    // عرض صور المعرض
+    if (event.httpMethod === 'GET' && path === '/api/gallery') {
+      if(!GALLERY_BIN) {
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true, data: [] }) };
+      }
+      
+      try {
+        const response = await axios.get(`https://api.jsonbin.io/v3/b/${GALLERY_BIN}/latest`, {
+          headers: { 'X-Master-Key': API_KEY }
+        });
+        const data = response.data.record;
+        
+        // تصفية الصور القديمة (أكثر من 24 ساعة)
+        const now = Date.now();
+        const oneDayMs = 24 * 60 * 60 * 1000;
+        const validImages = (data.images || []).filter(img => {
+          const createdTime = new Date(img.createdAt).getTime();
+          const age = now - createdTime;
+          return age < oneDayMs;
+        });
+        
+        const sorted = validImages.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true, data: sorted }) };
+      } catch (e) {
+        return { statusCode: 200, headers, body: JSON.stringify({ ok: true, data: [] }) };
+      }
+    }
+    
+    // إضافة صورة للمعرض (للمسؤولين فقط)
+    if (event.httpMethod === 'POST' && path === '/api/gallery') {
+      if(!GALLERY_BIN) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'معرض الصور غير مفعل' }) };
+      }
+      
+      const { code, token, imageUrl, imageData } = JSON.parse(event.body);
+      
+      if (!code || !token) {
+        return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'يتطلب تسجيل الدخول' }) };
+      }
+      
+      if (!imageUrl && !imageData) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'يجب توفير رابط صورة أو بيانات الصورة' }) };
+      }
+      
+      const c = String(code).trim();
+      
+      // التحقق من أن المستخدم مسؤول
+      const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const adminData = adminResponse.data.record;
+      const isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
+      
+      if (!isAdmin) {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'فقط المسؤولون يمكنهم إضافة الصور' }) };
+      }
+      
+      const image = {
+        id: 'IMG-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(3).toString('hex').toUpperCase(),
+        url: imageUrl || imageData,
+        createdAt: new Date().toISOString()
+      };
+      
+      const galleryResponse = await axios.get(`https://api.jsonbin.io/v3/b/${GALLERY_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const galleryData = galleryResponse.data.record;
+      galleryData.images = galleryData.images || [];
+      galleryData.images.push(image);
+      
+      await axios.put(`https://api.jsonbin.io/v3/b/${GALLERY_BIN}`, galleryData, {
+        headers: { 'X-Master-Key': API_KEY, 'Content-Type': 'application/json' }
+      });
+      
+      return {
+        statusCode: 201,
+        headers,
+        body: JSON.stringify({ ok: true, data: image })
+      };
+    }
+    
+    // حذف صورة من المعرض (للمسؤولين فقط)
+    if (event.httpMethod === 'DELETE' && path.startsWith('/api/gallery/')) {
+      if(!GALLERY_BIN) {
+        return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'معرض الصور غير مفعل' }) };
+      }
+      
+      const query = event.queryStringParameters || {};
+      const { code, token } = query;
+      const id = path.replace('/api/gallery/', '');
+      
+      if (!code || !token) {
+        return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: 'يتطلب الحذف تسجيل الدخول' }) };
+      }
+      
+      const c = String(code).trim();
+      
+      const adminResponse = await axios.get(`https://api.jsonbin.io/v3/b/${ADMINS_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const adminData = adminResponse.data.record;
+      const isAdmin = adminData.admins && Array.isArray(adminData.admins) && adminData.admins.includes(c);
+      
+      if (!isAdmin) {
+        return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'فقط المسؤولون يمكنهم حذف الصور' }) };
+      }
+      
+      const galleryResponse = await axios.get(`https://api.jsonbin.io/v3/b/${GALLERY_BIN}/latest`, {
+        headers: { 'X-Master-Key': API_KEY }
+      });
+      const galleryData = galleryResponse.data.record;
+      const before = (galleryData.images || []).length;
+      galleryData.images = (galleryData.images || []).filter(img => img.id !== id);
+      
+      if (galleryData.images.length === before) {
+        return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'الصورة غير موجودة' }) };
+      }
+      
+      await axios.put(`https://api.jsonbin.io/v3/b/${GALLERY_BIN}`, galleryData, {
+        headers: { 'X-Master-Key': API_KEY, 'Content-Type': 'application/json' }
+      });
+      
+      return { statusCode: 200, headers, body: JSON.stringify({ ok: true }) };
     }
 
     return { statusCode: 404, headers, body: JSON.stringify({ error: 'Not found' }) };

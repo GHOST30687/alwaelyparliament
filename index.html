@@ -264,10 +264,27 @@
                 <label for="annContent">محتوى التبليغ</label>
                 <textarea id="annContent" name="annContent" rows="4" placeholder="اكتب تفاصيل التبليغ" required></textarea>
               </div>
-              <div class="form-field" style="grid-column: 1 / -1;">
-                <label for="annImageUrl">رابط الصورة (اختياري)</label>
+              
+              <div class="upload-options" style="grid-column: 1 / -1;">
+                <label style="font-weight: 600; margin-bottom: 8px; display: block;">إضافة صورة (اختياري)</label>
+                <div class="option-tabs">
+                  <button type="button" class="option-tab-ann active" data-option="none">⊘ بدون صورة</button>
+                  <button type="button" class="option-tab-ann" data-option="file">📎 رفع من الجهاز</button>
+                  <button type="button" class="option-tab-ann" data-option="url">🔗 إضافة رابط</button>
+                </div>
+              </div>
+              
+              <div class="form-field upload-option-content-ann hidden" id="annUploadOptionFile" style="grid-column: 1 / -1;">
+                <label for="annImageFile">اختر صورة من جهازك</label>
+                <input id="annImageFile" name="annImageFile" type="file" accept="image/*" />
+                <div class="hint">يدعم JPG, PNG, GIF حتى 5MB</div>
+              </div>
+              
+              <div class="form-field upload-option-content-ann hidden" id="annUploadOptionUrl" style="grid-column: 1 / -1;">
+                <label for="annImageUrl">رابط الصورة</label>
                 <input id="annImageUrl" name="annImageUrl" type="url" placeholder="https://example.com/image.jpg" />
               </div>
+              
               <div class="form-actions" style="grid-column: 1 / -1;">
                 <button type="submit" class="btn primary">📤 نشر التبليغ</button>
               </div>
