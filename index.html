@@ -30,9 +30,25 @@
       <div class="side-nav-content">
         <h3>القائمة</h3>
         <nav class="nav-links">
-          <a href="#announcements" class="nav-link active">
+          <a href="#home" class="nav-link active" data-section="home">
+            <span class="nav-icon">🖼️</span>
+            <span>متصفح الصور</span>
+          </a>
+          <a href="#announcements" class="nav-link" data-section="announcements">
             <span class="nav-icon">📢</span>
-            <span>التبليغات</span>
+            <span>آخر التبليغات</span>
+          </a>
+          <a href="#archivedAnnouncements" class="nav-link" data-section="archivedAnnouncements">
+            <span class="nav-icon">🗄️</span>
+            <span>التبليغات القديمة</span>
+          </a>
+          <a href="#publish" class="nav-link nav-link-admin hidden" data-section="publish">
+            <span class="nav-icon">✍️</span>
+            <span>نشر تبليغ/صور</span>
+          </a>
+          <a href="#contact" class="nav-link" data-section="contact">
+            <span class="nav-icon">📱</span>
+            <span>تواصل معنا</span>
           </a>
         </nav>
       </div>
@@ -43,13 +59,38 @@
     <main id="main" class="container main-landing">
       <!-- صفحة البداية -->
       <section id="landingView" class="card landing-card">
-        <h2 class="landing-title">اختر احد الازرار الأتية</h2>
-        <div class="btn-group three">
-          <button id="studentBtn" class="btn primary" type="button">أنا طالب</button>
-          <button id="mpBtn" class="btn" type="button">أنا برلماني</button>
-          <button id="adminBtn" class="btn" type="button">أنا مسؤول</button>
+        <h2 class="landing-title">مرحباً بك في موقع البرلمان الطلابي</h2>
+        <p class="landing-subtitle">الرجاء اختيار نوع المستخدم للمتابعة</p>
+        
+        <div class="landing-cards-container">
+          <!-- طالب -->
+          <div class="landing-option-card">
+            <div class="landing-option-icon">🎓</div>
+            <h3 class="landing-option-title">طالب</h3>
+
+            <button id="studentBtn" class="landing-option-btn btn-student" type="button">دخول</button>
+          </div>
+          
+          <!-- مسؤول -->
+          <div class="landing-option-card card-admin">
+            <div class="landing-option-icon">👨‍💼</div>
+            <h3 class="landing-option-title">مسؤول</h3>
+            <p class="landing-option-desc"><br/></p>
+
+            <button id="adminBtn" class="landing-option-btn btn-admin" type="button">تسجيل الدخول</button>
+          </div>
+          
+          <!-- برلماني -->
+          <div class="landing-option-card">
+            <div class="landing-option-icon">🏛️</div>
+            <h3 class="landing-option-title">برلماني</h3>
+
+            <button id="mpBtn" class="landing-option-btn btn-member" type="button">تسجيل الدخول</button>
+          </div>
         </div>
-        <div class="landing-credits">تطوير وبرمجة باقر أسعد حسين</div>
+
+        <div class="landing-credits">© 2025 البرلمان الطلابي - ثانوية الوائلي للمتميزين</div>
+
       </section>
 
       <!-- صفحة الدخول -->
@@ -59,7 +100,7 @@
         <form id="loginForm" class="grid">
           <div class="form-field" style="grid-column: 1 / -1;">
             <label id="loginLabel" for="loginCode">أدخل الكود</label>
-            <input id="loginCode" name="loginCode" type="text" placeholder="أدخل كودك" required />
+            <input id="loginCode" name="loginCode" type="text" placeholder="اكتب الكود المعطى لك من الإدارة" required />
           </div>
           <div class="form-actions" style="grid-column: 1 / -1;">
             <button type="submit" class="btn primary">دخول</button>
@@ -93,66 +134,163 @@
 
       <!-- قسم المحتوى الرئيسي -->
       <section id="mainContentSection" class="hidden">
-        <!-- القائمة الرئيسية -->
-        <div class="card main-content-card">
-          <h2 class="main-title">🏠 القائمة الرئيسية</h2>
-          
-          <!-- نموذج رفع صور -->
-          <form id="galleryUploadForm" class="grid hidden" style="margin-bottom: 24px;">
-            <div class="form-field" style="grid-column: 1 / -1;">
-              <label for="galleryImageUrl">رابط الصورة</label>
-              <input id="galleryImageUrl" name="galleryImageUrl" type="url" placeholder="https://example.com/image.jpg" />
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn primary">إضافة صورة</button>
-            </div>
-          </form>
-
-          <!-- متصفح الصور -->
-          <div class="image-slider" id="imageSlider">
-            <button class="slider-btn prev" id="sliderPrev">&lsaquo;</button>
-            <div class="slider-container">
-              <div class="slider-track" id="sliderTrack">
-                <!-- الصور ستضاف هنا -->
+        
+        <!-- متصفح الصور -->
+        <div id="section-home" class="scroll-section">
+          <div class="card main-content-card">
+            <h2 class="main-title">🏠 متصفح الصور</h2>
+            
+            <div class="image-slider" id="imageSlider">
+              <button class="slider-btn prev" id="sliderPrev">&lsaquo;</button>
+              <div class="slider-container">
+                <div class="slider-track" id="sliderTrack">
+                  <!-- الصور ستضاف هنا -->
+                </div>
               </div>
+              <button class="slider-btn next" id="sliderNext">&rsaquo;</button>
             </div>
-            <button class="slider-btn next" id="sliderNext">&rsaquo;</button>
-          </div>
-          <div class="slider-dots" id="sliderDots"></div>
+            <div class="slider-dots" id="sliderDots"></div>
 
-          <!-- رسالة عدم وجود تبليغات -->
-          <div id="noAnnouncementsMessage" class="no-announcements-message hidden">
-            <div class="no-ann-icon">📄</div>
-            <h3>لا توجد تبليغات حالياً</h3>
+            <div id="noAnnouncementsMessage" class="no-announcements-message hidden">
+              <div class="no-ann-icon">📄</div>
+              <h3>لا توجد تبليغات حالياً</h3>
+            </div>
           </div>
         </div>
 
-        <!-- نموذج نشر التبليغ -->
-        <div class="card announcements-form-card hidden" id="annFormCard">
-          <h2>📢 نشر تبليغ جديد</h2>
-          <form id="annForm" class="grid">
-            <div class="form-field" style="grid-column: 1 / -1;">
-              <label for="annTitle">عنوان التبليغ</label>
-              <input id="annTitle" name="annTitle" type="text" placeholder="عنوان التبليغ" required />
+        <!-- قسم آخر التبليغات -->
+        <div id="section-announcements" class="scroll-section">
+          <div class="card announcements-card" id="announcementsCard">
+            <h2 id="announcementsTitle">📢 آخر التبليغات</h2>
+            <div id="annList" class="ann-list-vertical"></div>
+            <div id="noAnnouncementsInList" class="no-announcements-message hidden">
+              <div class="no-ann-icon">📄</div>
+              <h3>لا توجد تبليغات حالياً</h3>
             </div>
-            <div class="form-field" style="grid-column: 1 / -1;">
-              <label for="annContent">محتوى التبليغ</label>
-              <textarea id="annContent" name="annContent" rows="4" placeholder="اكتب تفاصيل التبليغ" required></textarea>
+          </div>
+          
+          <!-- قسم التبليغات القديمة -->
+          <div class="card announcements-card" id="archivedAnnouncementsCard">
+            <h2 id="archivedAnnouncementsTitle">🗄️ التبليغات القديمة</h2>
+            <div id="archivedAnnList" class="ann-list-vertical"></div>
+            <div id="noArchivedAnnouncements" class="no-announcements-message hidden">
+              <div class="no-ann-icon">🗄️</div>
+              <h3>لا توجد تبليغات قديمة</h3>
             </div>
-            <div class="form-field" style="grid-column: 1 / -1;">
-              <label for="annImageUrl">رابط الصورة (اختياري)</label>
-              <input id="annImageUrl" name="annImageUrl" type="url" placeholder="https://example.com/image.jpg" />
+          </div>
+          
+          <!-- قسم تواصل معنا -->
+          <div class="card" id="contactFormCard">
+            <h2 style="text-align: center; font-size: 1.8rem; margin-bottom: 12px;">📞 تواصل معنا</h2>
+            <p style="color: var(--muted); margin-bottom: 24px; text-align: center; font-size: 1.05rem;">أرسل رسالتك أو استفسارك إلى البرلمان الطلابي</p>
+            <form id="contactForm" class="contact-form-centered">
+              <div class="form-field">
+                <label for="studentName">الاسم (اختياري)</label>
+                <input id="studentName" name="studentName" type="text" placeholder="اسمك الكريم" />
+              </div>
+              <div class="form-field">
+                <label for="studentGrade">الصف <span style="color: var(--danger);">*</span></label>
+                <select id="studentGrade" name="studentGrade" required>
+                  <option value="">اختر الصف</option>
+                  <option value="أول متوسط">أول متوسط</option>
+                  <option value="ثاني متوسط">ثاني متوسط</option>
+                  <option value="ثالث متوسط">ثالث متوسط</option>
+                  <option value="رابع إعدادي">رابع إعدادي</option>
+                  <option value="خامس إعدادي">خامس إعدادي</option>
+                  <option value="سادس إعدادي">سادس إعدادي</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="studentSection">الشعبة <span style="color: var(--danger);">*</span></label>
+                <select id="studentSection" name="studentSection" required>
+                  <option value="">اختر الشعبة</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label for="studentMessage">الرسالة <span style="color: var(--danger);">*</span></label>
+                <textarea id="studentMessage" name="studentMessage" rows="8" placeholder="اكتب رسالتك أو استفسارك هنا..." required></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn primary">📤 إرسال الرسالة</button>
+              </div>
+            </form>
+            <div style="text-align: center; margin-top: 32px;">
+              <p style="color: var(--muted); margin-bottom: 16px; font-size: 1rem;">أو يمكنك مراسلتنا عبر</p>
+              <a href="https://t.me/Alwaely_Parliament_bot" target="_blank" rel="noopener" class="bot-button">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161l-1.894 8.927c-.141.636-.516.794-1.048.494l-2.896-2.135-1.396 1.342c-.155.155-.285.285-.585.285l.208-2.96 5.396-4.873c.234-.208-.051-.325-.364-.117L8.94 13.518l-2.86-.894c-.623-.196-.636-.623.13-.923l11.182-4.308c.52-.194.975.117.806.923z"/>
+                </svg>
+                <span>🤖 بوت البرلمان الطلابي</span>
+              </a>
             </div>
-            <div class="form-actions" style="grid-column: 1 / -1;">
-              <button type="submit" class="btn primary">📤 نشر التبليغ</button>
-            </div>
-          </form>
+          </div>
         </div>
 
-        <!-- التبليغات -->
-        <div class="card announcements-card" id="announcementsCard">
-          <h2 id="announcementsTitle">📢 آخر التبليغات</h2>
-          <div id="annList" class="ann-list-vertical"></div>
+        <!-- قسم النشر (للمسؤولين فقط) -->
+        <div id="section-publish" class="scroll-section hidden">
+          <!-- نموذج نشر التبليغ -->
+          <div class="card announcements-form-card" id="annFormCard">
+            <h2>📢 نشر تبليغ جديد</h2>
+            <form id="annForm" class="grid">
+              <div class="form-field" style="grid-column: 1 / -1;">
+                <label for="annTitle">عنوان التبليغ</label>
+                <input id="annTitle" name="annTitle" type="text" placeholder="عنوان التبليغ" required />
+              </div>
+              <div class="form-field" style="grid-column: 1 / -1;">
+                <label for="annContent">محتوى التبليغ</label>
+                <textarea id="annContent" name="annContent" rows="4" placeholder="اكتب تفاصيل التبليغ" required></textarea>
+              </div>
+              <div class="form-field" style="grid-column: 1 / -1;">
+                <label for="annImageUrl">رابط الصورة (اختياري)</label>
+                <input id="annImageUrl" name="annImageUrl" type="url" placeholder="https://example.com/image.jpg" />
+              </div>
+              <div class="form-actions" style="grid-column: 1 / -1;">
+                <button type="submit" class="btn primary">📤 نشر التبليغ</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- نموذج رفع صور -->
+          <div class="card" id="galleryUploadForm">
+            <h2>🖼️ إضافة صور جديدة</h2>
+            <form id="galleryForm" class="grid">
+              <div class="upload-options" style="grid-column: 1 / -1;">
+                <div class="option-tabs">
+                  <button type="button" class="option-tab active" data-option="file">📎 رفع من الجهاز</button>
+                  <button type="button" class="option-tab" data-option="url">🔗 إضافة رابط</button>
+                </div>
+              </div>
+              
+              <div class="form-field upload-option-content" id="uploadOptionFile" style="grid-column: 1 / -1;">
+                <label for="galleryImageFile">اختر صورة من جهازك</label>
+                <input id="galleryImageFile" name="galleryImageFile" type="file" accept="image/*" />
+                <div class="hint">يدعم JPG, PNG, GIF حتى 5MB</div>
+              </div>
+              
+              <div class="form-field upload-option-content hidden" id="uploadOptionUrl" style="grid-column: 1 / -1;">
+                <label for="galleryImageUrl">رابط الصورة</label>
+                <input id="galleryImageUrl" name="galleryImageUrl" type="url" placeholder="https://example.com/image.jpg" />
+              </div>
+              
+              <div class="form-actions" style="grid-column: 1 / -1;">
+                <button type="submit" class="btn primary">إضافة صورة</button>
+              </div>
+            </form>
+          </div>
+          
+          <!-- قسم رسائل الطلاب (للمسؤولين فقط) -->
+          <div class="card" id="studentMessagesCard" style="display: none;">
+            <h2>📨 رسائل الطلاب</h2>
+            <div id="studentMessagesList" class="ann-list-vertical"></div>
+            <div id="noStudentMessages" class="no-announcements-message hidden">
+              <div class="no-ann-icon">📨</div>
+              <h3>لا توجد رسائل</h3>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -163,40 +301,8 @@
     <!-- Footer -->
     <footer class="site-footer" id="siteFooter">
       <div class="footer-content">
-        <!-- قسم التواصل على اليمين -->
-        <div class="footer-contact-section">
-          <h3>📞 تواصل معنا</h3>
-          <div class="contact-items">
-            <a href="https://t.me/Alwaely_Parliament_bot" target="_blank" rel="noopener" class="contact-method">
-              <div class="contact-icon-circle bot-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-                  <circle cx="9" cy="14" r="1"/>
-                  <circle cx="15" cy="14" r="1"/>
-                  <path d="M12 17.5c-1.1 0-2.1-.55-2.7-1.4l.8-.6c.4.6 1.1.9 1.9.9s1.5-.3 1.9-.9l.8.6c-.6.85-1.6 1.4-2.7 1.4z"/>
-                </svg>
-              </div>
-              <div class="contact-text">
-                <div class="contact-label">بوت البرلمان الطلابي للتواصل</div>
-                <div class="contact-action">تواصل الآن →</div>
-              </div>
-            </a>
-            <a href="mailto:alwaely.parliament@gmail.com" class="contact-method">
-              <div class="contact-icon-circle email-icon">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-                </svg>
-              </div>
-              <div class="contact-text">
-                <div class="contact-label">إيميل البرلمان الطلابي للتواصل</div>
-                <div class="contact-action">راسلنا →</div>
-              </div>
-            </a>
-          </div>
-        </div>
-
-        <!-- قسم تابعنا على -->
-        <div class="social-links">
+        <!-- قسم وسائل التواصل -->
+        <div class="social-links" style="grid-column: 1 / -1;">
           <h3>تابعنا على</h3>
           <div class="social-icons">
             <a href="https://t.me/alwaely_Parliament" target="_blank" rel="noopener" class="social-icon telegram" title="تليجرام">
@@ -204,14 +310,20 @@
                 <path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.562 8.161l-1.894 8.927c-.141.636-.516.794-1.048.494l-2.896-2.135-1.396 1.342c-.155.155-.285.285-.585.285l.208-2.96 5.396-4.873c.234-.208-.051-.325-.364-.117L8.94 13.518l-2.86-.894c-.623-.196-.636-.623.13-.923l11.182-4.308c.52-.194.975.117.806.923z"/>
               </svg>
             </a>
-            <a href="https://vt.tiktok.com/ZSUxcLNco/" target="_blank" rel="noopener" class="social-icon tiktok" title="تيكتوك">
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-              </svg>
-            </a>
             <a href="#" target="_blank" rel="noopener" class="social-icon youtube" title="يوتيوب">
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+            </a>
+            <a href="https://vt.tiktok.com/ZSUxcLNco/" target="_blank" rel="noopener" class="social-icon tiktok" title="تيكتوك">
+              <svg viewBox="0 0 2859 3333" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="tiktokGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#25F4EE;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#FE2C55;stop-opacity:1" />
+                  </linearGradient>
+                </defs>
+                <path d="M2081 0c55 473 319 755 778 785v532c-266 26-499-61-770-225v995c0 1264-1378 1659-1932 753-356-583-138-1606 1004-1647v561c-87 14-180 36-265 65-254 86-398 247-358 531 77 544 1075 705 992-358V1h551z" fill="url(#tiktokGradient)"/>
               </svg>
             </a>
           </div>

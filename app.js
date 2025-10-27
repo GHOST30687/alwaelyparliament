@@ -9,7 +9,11 @@
     checkPublisher: async (code) => (await fetch('/api/auth/check', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ code }) })).json(),
     // تبليغات
     annList: async () => (await fetch('/api/announcements')).json(),
-    annPost: async (payload) => (await fetch('/api/announcements', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })).json()
+    annPost: async (payload) => (await fetch('/api/announcements', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })).json(),
+    annDelete: async (id, code, token) => (await fetch(`/api/announcements/${encodeURIComponent(id)}?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`, { method: 'DELETE' })).json(),
+    // رسائل الطلاب
+    messagePost: async (payload) => (await fetch('/api/messages', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })).json(),
+    messagesList: async (code, token) => (await fetch(`/api/messages?code=${encodeURIComponent(code)}&token=${encodeURIComponent(token)}`)).json()
   };
 
   // معلومات محفوظة للاستخدام المستقبلي (غير مستخدمة الآن)
@@ -68,7 +72,8 @@
     memberName: null,
     userType: null, // 'member', 'admin', 'student'
     currentSlide: 0,
-    galleryImages: []
+    galleryImages: [],
+    autoSlideInterval: null
   };
 
   // إلغاء الوضع الداكن وجعل الخلفية بيضاء دائماً
@@ -104,17 +109,61 @@
     }
   }
 
+  // فصل التبليغات الجديدة والقديمة (أكثر من 24 ساعة)
+  function separateAnnouncements(list){
+    if(!list || !list.length) return { recent: [], archived: [] };
+    
+    const now = new Date().getTime();
+    const oneDayMs = 24 * 60 * 60 * 1000; // 24 ساعة
+    
+    const recent = [];
+    const archived = [];
+    
+    list.forEach(ann => {
+      const createdTime = new Date(ann.createdAt).getTime();
+      const age = now - createdTime;
+      
+      if(age > oneDayMs){
+        archived.push(ann);
+      } else {
+        recent.push(ann);
+      }
+    });
+    
+    return { recent, archived };
+  }
+
   function renderAnnouncements(list){
     els.annList.innerHTML = '';
-    if(!list || !list.length){
-      // إخفاء قسم التبليغات وإظهار رسالة "لا توجد تبليغات" في القائمة الرئيسية
-      els.announcementsCard && els.announcementsCard.classList.add('hidden');
-      els.noAnnouncementsMessage && els.noAnnouncementsMessage.classList.remove('hidden');
-      return;
+    const archivedAnnList = document.getElementById('archivedAnnList');
+    const noAnnInList = document.getElementById('noAnnouncementsInList');
+    const noArchivedAnn = document.getElementById('noArchivedAnnouncements');
+    
+    // فصل التبليغات
+    const { recent, archived } = separateAnnouncements(list);
+    
+    // عرض التبليغات الجديدة
+    if(!recent || !recent.length){
+      noAnnInList && noAnnInList.classList.remove('hidden');
+    } else {
+      noAnnInList && noAnnInList.classList.add('hidden');
+      renderAnnouncementList(recent, els.annList);
     }
-    // إظهار قسم التبليغات وإخفاء رسالة "لا توجد"
-    els.announcementsCard && els.announcementsCard.classList.remove('hidden');
-    els.noAnnouncementsMessage && els.noAnnouncementsMessage.classList.add('hidden');
+    
+    // عرض التبليغات القديمة
+    if(archivedAnnList){
+      archivedAnnList.innerHTML = '';
+      if(!archived || !archived.length){
+        noArchivedAnn && noArchivedAnn.classList.remove('hidden');
+      } else {
+        noArchivedAnn && noArchivedAnn.classList.add('hidden');
+        renderAnnouncementList(archived, archivedAnnList);
+      }
+    }
+  }
+  
+  function renderAnnouncementList(list, container){
+    if(!list || !container) return;
     list.forEach((a, idx) => {
       const card = document.createElement('div');
       card.className = 'announcement-card';
@@ -129,21 +178,49 @@
             <span>${hijriDate}</span>
           </div>
         </div>
-        <button class="expand-ann-btn" data-ann-idx="${idx}">
-          <span>عرض التبليغ</span>
-          <span>→</span>
-        </button>
+        <div class="announcement-actions">
+          <button class="expand-ann-btn" data-ann-idx="${idx}">
+            <span>عرض التبليغ</span>
+            <span>→</span>
+          </button>
+          ${state.isAdmin ? `<button class="delete-ann-btn" data-ann-id="${escapeHtml(a.id)}" title="حذف التبليغ">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+          </button>` : ''}
+        </div>
       `;
-      els.annList.appendChild(card);
+      container.appendChild(card);
     });
     // Add expand functionality
-    document.querySelectorAll('.expand-ann-btn').forEach(btn => {
+    const expandButtons = container.querySelectorAll('.expand-ann-btn');
+    expandButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idx = parseInt(btn.getAttribute('data-ann-idx'));
         if(list[idx]) showAnnouncementModal(list[idx]);
       });
     });
+    // Add delete functionality for admins
+    if(state.isAdmin){
+      const deleteButtons = container.querySelectorAll('.delete-ann-btn');
+      deleteButtons.forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          const id = btn.getAttribute('data-ann-id');
+          const confirmed = await confirmDialog('هل أنت متأكد من حذف هذا التبليغ؟', { okText: 'حذف', cancelText: 'إلغاء' });
+          if(!confirmed) return;
+          try{
+            const { ok, error } = await API.annDelete(id, state.code, state.token);
+            if(!ok) throw new Error(error || 'فشل الحذف');
+            showSuccess('تم حذف التبليغ بنجاح');
+            await refreshAnnouncements();
+          }catch(err){
+            showError('تعذر حذف التبليغ: ' + (err.message || err));
+          }
+        });
+      });
+    }
   }
 
   function showAnnouncementModal(announcement){
@@ -268,6 +345,8 @@
       }
     }catch(err){
       showError('تعذر تحميل التبليغات: ' + (err.message || err));
+      // إظهار رسالة عدم وجود تبليغات حتى عند حدوث خطأ
+      renderAnnouncements([]);
     }
   }
 
@@ -357,19 +436,17 @@
       els.landingView.classList.add('hidden');
       els.loginView.classList.add('hidden');
       els.mainContentSection && els.mainContentSection.classList.remove('hidden');
-      els.siteFooter && els.siteFooter.classList.remove('hidden');
-      els.menuToggle && els.menuToggle.classList.add('hidden');
+      els.menuToggle && els.menuToggle.classList.remove('hidden');
       
       // فقط المسؤولون يمكنهم رؤية الإحصائيات ونشر التبليغات
       if(state.isAdmin){
         els.statsSection && els.statsSection.classList.remove('hidden');
-        els.annFormCard && els.annFormCard.classList.remove('hidden');
-        els.galleryUploadForm && els.galleryUploadForm.classList.remove('hidden');
+        // إظهار قسم النشر في القائمة الجانبية
+        document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
       } else {
         // البرلمانيون ليس لديهم صلاحيات - مثل الطلاب
         els.statsSection && els.statsSection.classList.add('hidden');
-        els.annFormCard && els.annFormCard.classList.add('hidden');
-        els.galleryUploadForm && els.galleryUploadForm.classList.add('hidden');
+        document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
       }
       // إزالة تمركز الدخول بعد تسجيل الدخول
       document.getElementById('main').classList.remove('main-login');
@@ -393,7 +470,7 @@
       document.getElementById('loginTitle').textContent = 'تسجيل الدخول للبرلماني';
       document.getElementById('loginHint').textContent = 'أدخل كود البرلماني الخاص بك';
       document.getElementById('loginLabel').textContent = 'كود البرلماني';
-      document.getElementById('loginCode').placeholder = 'مثال: MP001';
+      document.getElementById('loginCode').placeholder = 'اكتب الكود المعطى لك من الإدارة';
       els.landingView && els.landingView.classList.add('hidden');
       els.loginView && els.loginView.classList.remove('hidden');
       const main = document.getElementById('main');
@@ -410,11 +487,9 @@
     els.loginView.classList.add('hidden');
     els.mainContentSection && els.mainContentSection.classList.remove('hidden');
     els.statsSection && els.statsSection.classList.add('hidden');
-    els.siteFooter && els.siteFooter.classList.remove('hidden');
     const main = document.getElementById('main');
     if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
-    els.annForm.classList.add('hidden');
-    els.menuToggle && els.menuToggle.classList.add('hidden');
+    els.menuToggle && els.menuToggle.classList.remove('hidden');
     try{ localStorage.setItem('userType', 'student'); }catch{}
     await refreshAll();
     initGallery();
@@ -427,7 +502,7 @@
       document.getElementById('loginTitle').textContent = 'تسجيل الدخول للمسؤول';
       document.getElementById('loginHint').textContent = 'أدخل كود المسؤول الخاص بك';
       document.getElementById('loginLabel').textContent = 'كود المسؤول';
-      document.getElementById('loginCode').placeholder = 'مثال: ADM001';
+      document.getElementById('loginCode').placeholder = 'اكتب الكود المعطى لك من الإدارة';
       els.landingView && els.landingView.classList.add('hidden');
       els.loginView && els.loginView.classList.remove('hidden');
       const main = document.getElementById('main');
@@ -446,7 +521,6 @@
       els.loginView && els.loginView.classList.add('hidden');
       els.mainContentSection && els.mainContentSection.classList.add('hidden');
       els.statsSection && els.statsSection.classList.add('hidden');
-      els.siteFooter && els.siteFooter.classList.add('hidden');
       els.menuToggle && els.menuToggle.classList.add('hidden');
       closeSideNav();
       const main = document.getElementById('main');
@@ -478,16 +552,40 @@
   });
   els.sideNavOverlay && els.sideNavOverlay.addEventListener('click', closeSideNav);
 
-  // Navigation Links - simplified since we only have announcements now
+  // Navigation Links - إضافة التنقل بين الأقسام
+  function navigateToSection(sectionName){
+    // Update active state
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    document.querySelectorAll(`.nav-link[data-section="${sectionName}"]`).forEach(l => l.classList.add('active'));
+    
+    closeSideNav();
+    
+    // Smooth scroll to section
+    if(sectionName === 'contact'){
+      // Scroll to contact form
+      const contactCard = document.getElementById('contactFormCard');
+      if(contactCard){
+        contactCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else if(sectionName === 'archivedAnnouncements'){
+      // Scroll to archived announcements
+      const archivedCard = document.getElementById('archivedAnnouncementsCard');
+      if(archivedCard){
+        archivedCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      const targetSection = document.getElementById(`section-${sectionName}`);
+      if(targetSection){
+        targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  }
+  
   document.querySelectorAll('.nav-link').forEach(link => {
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      // Update active state
-      document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-      link.classList.add('active');
-      closeSideNav();
-      // Scroll to top
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const section = link.getAttribute('data-section');
+      if(section) navigateToSection(section);
     });
   });
 
@@ -506,19 +604,41 @@
     if(!els.sliderTrack) return;
     els.sliderTrack.innerHTML = '';
     if(!state.galleryImages || state.galleryImages.length === 0){
-      els.sliderTrack.innerHTML = '<div class="empty-gallery">📷 لا توجد صور حالياً</div>';
-      updateSliderControls();
+      els.sliderTrack.innerHTML = '<div class="empty-gallery">لا توجد صور متاحة حالياً</div>';
+      // إخفاء أزرار التنقل والنقاط
+      if(els.sliderPrev) els.sliderPrev.style.display = 'none';
+      if(els.sliderNext) els.sliderNext.style.display = 'none';
+      if(els.sliderDots) els.sliderDots.style.display = 'none';
+      stopAutoSlide();
       return;
     }
+    
+    // إظهار أزرار التنقل مرة أخرى
+    if(els.sliderPrev) els.sliderPrev.style.display = '';
+    if(els.sliderNext) els.sliderNext.style.display = '';
+    if(els.sliderDots) els.sliderDots.style.display = '';
+    
     state.galleryImages.forEach((imgUrl, idx) => {
       const item = document.createElement('div');
       item.className = 'slider-item';
-      item.innerHTML = `<img src="${escapeHtml(imgUrl)}" alt="صورة ${idx + 1}" loading="lazy" />`;
+      const img = document.createElement('img');
+      img.src = escapeHtml(imgUrl);
+      img.alt = `صورة ${idx + 1}`;
+      img.loading = 'lazy';
+      
+      // معالجة أخطاء تحميل الصور
+      img.onerror = () => {
+        stopAutoSlide();
+        item.innerHTML = '<div class="empty-gallery">لا توجد صور متاحة حالياً</div>';
+      };
+      
+      item.appendChild(img);
       els.sliderTrack.appendChild(item);
     });
     renderDots();
     updateSliderPosition();
     updateSliderControls();
+    startAutoSlide();
   }
 
   function renderDots(){
@@ -570,27 +690,113 @@
     updateSliderControls();
   }
 
-  els.sliderNext && els.sliderNext.addEventListener('click', nextSlide);
-  els.sliderPrev && els.sliderPrev.addEventListener('click', prevSlide);
+  // التقليب التلقائي للصور
+  function startAutoSlide(){
+    stopAutoSlide();
+    if(!state.galleryImages || state.galleryImages.length <= 1) return;
+    state.autoSlideInterval = setInterval(() => {
+      if(state.currentSlide >= state.galleryImages.length - 1){
+        state.currentSlide = 0;
+      } else {
+        state.currentSlide++;
+      }
+      updateSliderPosition();
+      updateSliderControls();
+    }, 4000);
+  }
+
+  function stopAutoSlide(){
+    if(state.autoSlideInterval){
+      clearInterval(state.autoSlideInterval);
+      state.autoSlideInterval = null;
+    }
+  }
+
+  els.sliderNext && els.sliderNext.addEventListener('click', () => {
+    stopAutoSlide();
+    nextSlide();
+    setTimeout(() => startAutoSlide(), 8000);
+  });
+  els.sliderPrev && els.sliderPrev.addEventListener('click', () => {
+    stopAutoSlide();
+    prevSlide();
+    setTimeout(() => startAutoSlide(), 8000);
+  });
+
+  // Upload option tabs
+  const optionTabs = document.querySelectorAll('.option-tab');
+  optionTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const option = tab.getAttribute('data-option');
+      // Update active tab
+      optionTabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      // Show/hide content
+      document.querySelectorAll('.upload-option-content').forEach(c => c.classList.add('hidden'));
+      if(option === 'file'){
+        document.getElementById('uploadOptionFile')?.classList.remove('hidden');
+      } else if(option === 'url'){
+        document.getElementById('uploadOptionUrl')?.classList.remove('hidden');
+      }
+    });
+  });
 
   // Gallery upload (for admins only)
-  els.galleryUploadForm && els.galleryUploadForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    if(!state.isAdmin){
-      showError('فقط المسؤولون يمكنهم إضافة الصور');
-      return;
-    }
-    const url = (els.galleryImageUrl.value || '').trim();
-    if(!url){
-      showError('يرجى إدخال رابط الصورة');
-      return;
-    }
-    state.galleryImages.push(url);
-    els.galleryImageUrl.value = '';
-    renderGallery();
-    showSuccess('تم إضافة الصورة بنجاح');
-    // TODO: Save to backend
-  });
+  const galleryForm = document.getElementById('galleryForm');
+  if(galleryForm){
+    galleryForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if(!state.isAdmin){
+        showError('فقط المسؤولون يمكنهم إضافة الصور');
+        return;
+      }
+      
+      // تحديد أي خيار نشط
+      const activeTab = document.querySelector('.option-tab.active');
+      const option = activeTab?.getAttribute('data-option');
+      
+      if(option === 'file'){
+        // رفع ملف محلي
+        const fileInput = document.getElementById('galleryImageFile');
+        const file = fileInput?.files[0];
+        if(!file){
+          showError('يرجى اختيار صورة');
+          return;
+        }
+        // فحص حجم الملف (5MB كحد أقصى)
+        if(file.size > 5 * 1024 * 1024){
+          showError('حجم الصورة يجب ألا يتجاوز 5MB');
+          return;
+        }
+        // تحويل الصورة إلى Data URL
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const dataUrl = ev.target.result;
+          state.galleryImages.push(dataUrl);
+          fileInput.value = '';
+          renderGallery();
+          showSuccess('تم إضافة الصورة بنجاح');
+          // TODO: حفظ في قاعدة البيانات
+        };
+        reader.onerror = () => {
+          showError('فشل قراءة الصورة');
+        };
+        reader.readAsDataURL(file);
+      } else if(option === 'url'){
+        // إضافة رابط
+        const url = (els.galleryImageUrl.value || '').trim();
+        if(!url){
+          showError('يرجى إدخال رابط الصورة');
+          return;
+        }
+        state.galleryImages.push(url);
+        els.galleryImageUrl.value = '';
+        renderGallery();
+        showSuccess('تم إضافة الصورة بنجاح');
+        // TODO: حفظ في قاعدة البيانات
+      }
+    });
+  }
 
   // محاولة استعادة جلسة محفوظة أو حالة الطالب
   try{
@@ -610,13 +816,11 @@
         els.landingView.classList.add('hidden');
         els.loginView.classList.add('hidden');
         els.mainContentSection && els.mainContentSection.classList.remove('hidden');
-        els.siteFooter && els.siteFooter.classList.remove('hidden');
-        els.menuToggle && els.menuToggle.classList.add('hidden');
+        els.menuToggle && els.menuToggle.classList.remove('hidden');
         // فقط المسؤولون يمكنهم النشر
         if(state.isAdmin){
-          els.annFormCard && els.annFormCard.classList.remove('hidden');
           els.statsSection && els.statsSection.classList.remove('hidden');
-          els.galleryUploadForm && els.galleryUploadForm.classList.remove('hidden');
+          document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
         }
         const main = document.getElementById('main');
         if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
@@ -630,10 +834,8 @@
       els.landingView.classList.add('hidden');
       els.loginView.classList.add('hidden');
       els.mainContentSection && els.mainContentSection.classList.remove('hidden');
-      els.annForm.classList.add('hidden');
       els.statsSection && els.statsSection.classList.add('hidden');
-      els.siteFooter && els.siteFooter.classList.remove('hidden');
-      els.menuToggle && els.menuToggle.classList.add('hidden');
+      els.menuToggle && els.menuToggle.classList.remove('hidden');
       const main = document.getElementById('main');
       if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
       await refreshAll();
