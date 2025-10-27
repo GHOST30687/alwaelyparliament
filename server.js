@@ -558,34 +558,6 @@ app.get('/api/messages', async (req, res) => {
 
 // ====== معرض الصور ======
 
-// حذف الصور القديمة (أكثر من 24 ساعة)
-async function cleanOldGalleryImages() {
-  try {
-    const galleryRec = await loadGalleryRecord();
-    const now = Date.now();
-    const oneDayMs = 24 * 60 * 60 * 1000;
-    
-    const before = galleryRec.images.length;
-    galleryRec.images = galleryRec.images.filter(img => {
-      const createdTime = new Date(img.createdAt).getTime();
-      const age = now - createdTime;
-      return age < oneDayMs; // الإبقاء على الصور الأحدث من 24 ساعة
-    });
-    
-    if (galleryRec.images.length !== before) {
-      await saveGalleryRecord(galleryRec);
-      console.log(`تم حذف ${before - galleryRec.images.length} صور قديمة`);
-    }
-  } catch (err) {
-    console.error('خطأ في حذف الصور القديمة:', err.message);
-  }
-}
-
-// تشغيل تنظيف تلقائي كل ساعة
-setInterval(cleanOldGalleryImages, 60 * 60 * 1000);
-// تنظيف عند بدء الخادم
-cleanOldGalleryImages();
-
 // عرض صور المعرض
 app.get('/api/gallery', async (req, res) => {
   try {
