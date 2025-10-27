@@ -18,7 +18,7 @@ const JSONBIN_CONFIG = {
   MEMBERS_BIN_ID: '68f25866ae596e708f18f0bb',      // bin البرلمانيين - ضع ID الجديد هنا
   ADMINS_BIN_ID: '68f2582ed0ea881f40a8281e',       // bin المسؤولين/الناشرين - استخدم الـ bin الحالي
   ANNOUNCEMENTS_BIN_ID: '68e83d64d0ea881f409bb543', // bin التبليغات
-  MESSAGES_BIN_ID: '',                             // bin رسائل الطلاب - أضف ID جديد هنا
+  MESSAGES_BIN_ID: '68ff7c36d0ea881f40bfb081',                             // bin رسائل الطلاب - أضف ID جديد هنا
   BASE_URL: 'https://api.jsonbin.io/v3'
 };
 

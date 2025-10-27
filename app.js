@@ -584,11 +584,17 @@
         // إظهار قسم المسؤولين وإخفاء قسم الطلاب
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
         document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
+        // إظهار أقسام النشر والرسائل
+        document.getElementById('section-publish') && document.getElementById('section-publish').classList.remove('hidden');
+        document.getElementById('section-messages') && document.getElementById('section-messages').classList.remove('hidden');
       } else {
         // البرلمانيون ليس لديهم صلاحيات - مثل الطلاب
         els.statsSection && els.statsSection.classList.add('hidden');
         document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.add('hidden'));
         document.querySelectorAll('.nav-link-student').forEach(l => l.classList.remove('hidden'));
+        // إخفاء أقسام النشر والرسائل
+        document.getElementById('section-publish') && document.getElementById('section-publish').classList.add('hidden');
+        document.getElementById('section-messages') && document.getElementById('section-messages').classList.add('hidden');
       }
       // إزالة تمركز الدخول بعد تسجيل الدخول
       document.getElementById('main').classList.remove('main-login');
@@ -706,7 +712,13 @@
     closeSideNav();
     
     // Smooth scroll to section
-    if(sectionName === 'contact'){
+    if(sectionName === 'stats'){
+      // Scroll to stats section
+      const statsSection = document.getElementById('statsSection');
+      if(statsSection){
+        statsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else if(sectionName === 'contact'){
       // Scroll to contact form
       const contactCard = document.getElementById('contactFormCard');
       if(contactCard){
@@ -967,6 +979,9 @@
           els.statsSection && els.statsSection.classList.remove('hidden');
           document.querySelectorAll('.nav-link-admin').forEach(l => l.classList.remove('hidden'));
           document.querySelectorAll('.nav-link-student').forEach(l => l.classList.add('hidden'));
+          // إظهار أقسام النشر والرسائل
+          document.getElementById('section-publish') && document.getElementById('section-publish').classList.remove('hidden');
+          document.getElementById('section-messages') && document.getElementById('section-messages').classList.remove('hidden');
         }
         const main = document.getElementById('main');
         if(main){ main.classList.remove('main-login'); main.classList.remove('main-landing'); }
